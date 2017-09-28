@@ -21,6 +21,7 @@ object Keywords {
     "this" -> THIS,
     "null" -> NULL,
     "new" -> NEW,
+    "println" -> PRINTLN,
   )
 
   def lookup(s : String) : Option[TokenKind] = keywords.get(s)

@@ -1,0 +1,65 @@
+// Identifiers
+hello
+hello_
+hello_1
+hello123
+hello___
+hello__
+hello123
+
+// Keywords
+object
+class
+def
+override
+var
+Unit
+String
+extends
+Int
+Boolean
+while
+if
+else
+true
+false
+this
+null
+new
+println
+
+// Comments
+/* foo bar */ foo
+/* foo
+bar
+baz */
+bar
+/*
+foo
+bar
+baz
+*/
+baz
+
+// Special characters
+:
+;
+.
+,
+=
+==
+!
+(
+)
+{
+}
+&&
+||
+<
++
+-
+*
+/
+
+// Strings
+"foobar"
