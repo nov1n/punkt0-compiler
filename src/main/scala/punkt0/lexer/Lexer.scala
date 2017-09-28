@@ -3,15 +3,18 @@ package lexer
 
 import java.io.File
 
-import scala.io.BufferedSource
+// TODO: Disallow nexted block comments
+// TODO: Add positions
+// TODO: Add error reporting
+// TODO: Quit(1) on error
+// TODO: Keep parsing on error
 
 object Lexer extends Phase[File, Iterator[Token]] {
   import Reporter._
 
   def run(f: File)(ctx: Context): Iterator[Token] = {
     var eof: Boolean = false
-    var current : Char = ' ' // Overwritten by first call to next
-    val source = scala.io.Source.fromFile(f).buffered
+    val source = scala.io.Source.fromFile(f).buffered // Buffered for head (peek)
 
     new Iterator[Token] {
 
@@ -23,62 +26,46 @@ object Lexer extends Phase[File, Iterator[Token]] {
 
         def parseBad: Token = new Token(BAD)
 
-        def parseCommentOrDiv: Token = {
+        // TODO: Remove while loops
+        def parseCommentOrDiv(b : StringBuffer) : Token = {
           source.headOption match {
-            case
-          }
-          if (source.hasNext) {
-            val b = new StringBuffer
-            b.append(current)
-
-            current = source.next
-            if (current == '/') {
-
+            case Some(x) if x == '/' =>
               // Advance until we find a newline
               while ((b.indexOf(scala.util.Properties.lineSeparator) == -1) && source.hasNext) {
-                current = source.next
-                b.append(current)
+                b.append(source.next)
               }
 
               // Return the next token
               next
-            } else if (current == '*') {
+            case Some(x) if x == '*' =>
+              // Advance until we find the */
               while ((b.indexOf("*/") == -1) && source.hasNext) {
-                current = source.next
-                b.append(current)
+                b.append(source.next)
               }
 
               // Return the next token
               next
-            } else if (current.isWhitespace) {
-              new Token(DIV) // TODO: Does not handle 5/4, need whitespace --> 5 / 4. Maybe we need to share the stringbuffer, or use peek with source.buffered.current
-            } else {
-              parseBad
-            }
-          } else {
-            parseBad // One '/' followed by EOF
+            case Some(_) =>
+              new Token(DIV)
+            case None =>
+              parseBad // TODO: it is not really bad but we have to return a token :/
           }
         }
 
-        def parseIdentOrKeword: Token = {
-          val b = new StringBuffer
-          b.append(current)
-
+        // TODO: Refactor errorTok
+        def parseIdentOrKeword(b : StringBuffer) : Token = {
           // Returns an error token if malformed, None otherwise
           def errorTok(): Option[Token] = {
-            if(!source.hasNext) {
-              None
-            } else {
-              current = source.next
-              if (current.isLetterOrDigit || current == '_') { // Extend token
-                b.append(current)
+            source.headOption match {
+              case Some(x) if x.isLetterOrDigit || x == '_' =>
+                b.append(source.next)
                 errorTok()
-              } else if (current.isWhitespace) {
+              case Some(x) if x.isWhitespace =>
                 None
-              } else {
-                // Unexpected char
+              case Some(_) =>
                 Some(parseBad)
-              }
+              case None =>
+                None
             }
           }
 
@@ -149,33 +136,32 @@ object Lexer extends Phase[File, Iterator[Token]] {
           eof = true
           new Token(EOF)
         } else {
-          current = source.next
+          val currentChar = source.next
 
-          if (current == '/') parseCommentOrDiv(new StringBuffer().append(current))
-          else if (current.isLetter) parseIdentOrKeword
-          else if (current.isDigit) parseIntLit(new StringBuffer().append(current))
-          else if (current == ':') new Token(COLON)
-          else if (current == ';') new Token(SEMICOLON)
-          else if (current == '.') new Token(DOT)
-          else if (current == ',') new Token(COMMA)
-          else if (current == '=') parseEq
-          else if (current == '!') new Token(BANG)
-          else if (current == '(') new Token(LPAREN)
-          else if (current == ')') new Token(RPAREN)
-          else if (current == '{') new Token(LBRACE)
-          else if (current == '}') new Token(RBRACE)
-          else if (current == '&') parseAnd
-          else if (current == '|') parseOr
-          else if (current == '<') new Token(LESSTHAN)
-          else if (current == '+') new Token(PLUS)
-          else if (current == '-') new Token(MINUS)
-          else if (current == '*') new Token(TIMES)
-          else if (current == '"') parseStr(new StringBuffer())
-          else if (current.isWhitespace) next
+          if (currentChar == '/') parseCommentOrDiv(new StringBuffer().append(currentChar))
+          else if (currentChar.isLetter) parseIdentOrKeword(new StringBuffer().append(currentChar))
+          else if (currentChar.isDigit) parseIntLit(new StringBuffer().append(currentChar))
+          else if (currentChar == ':') new Token(COLON)
+          else if (currentChar == ';') new Token(SEMICOLON)
+          else if (currentChar == '.') new Token(DOT)
+          else if (currentChar == ',') new Token(COMMA)
+          else if (currentChar == '=') parseEq
+          else if (currentChar == '!') new Token(BANG)
+          else if (currentChar == '(') new Token(LPAREN)
+          else if (currentChar == ')') new Token(RPAREN)
+          else if (currentChar == '{') new Token(LBRACE)
+          else if (currentChar == '}') new Token(RBRACE)
+          else if (currentChar == '&') parseAnd
+          else if (currentChar == '|') parseOr
+          else if (currentChar == '<') new Token(LESSTHAN)
+          else if (currentChar == '+') new Token(PLUS)
+          else if (currentChar == '-') new Token(MINUS)
+          else if (currentChar == '*') new Token(TIMES)
+          else if (currentChar == '"') parseStr(new StringBuffer())
+          else if (currentChar.isWhitespace) next
           else parseBad
         }
       }
     }
   }
-
 }
