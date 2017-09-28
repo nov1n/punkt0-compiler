@@ -3,13 +3,15 @@ package lexer
 
 import java.io.File
 
+import scala.io.BufferedSource
+
 object Lexer extends Phase[File, Iterator[Token]] {
   import Reporter._
 
   def run(f: File)(ctx: Context): Iterator[Token] = {
     var eof: Boolean = false
     var current : Char = ' ' // Overwritten by first call to next
-    val source = scala.io.Source.fromFile(f)
+    val source = scala.io.Source.fromFile(f).buffered
 
     new Iterator[Token] {
 
@@ -19,15 +21,12 @@ object Lexer extends Phase[File, Iterator[Token]] {
 
       def next: Token = {
 
-        def parseBad: Token = {
-          // Consume iterator up to next whitespace to invalidate this token
-          while(current.isWhitespace && source.hasNext) {
-            current = source.next
-          }
-          new Token(BAD)
-        }
+        def parseBad: Token = new Token(BAD)
 
         def parseCommentOrDiv: Token = {
+          source.headOption match {
+            case
+          }
           if (source.hasNext) {
             val b = new StringBuffer
             b.append(current)
@@ -93,65 +92,57 @@ object Lexer extends Phase[File, Iterator[Token]] {
           }
         }
 
-        def parseIntLit: Token = {
-          val b = new StringBuffer
-          while (current.isDigit) {
-            b.append(current)
-            current = source.next
+        def parseIntLit(b: StringBuffer) : Token = {
+          source.headOption match {
+            case Some(x) if x.isDigit =>
+              b.append(source.next)
+              parseIntLit(b)
+            case Some(_) | None =>
+              new INTLIT(b.toString.toInt)
           }
-          new INTLIT(b.toString.toInt)
         }
 
         def parseEq : Token = {
-          if(source.hasNext) {
-            current = source.next
-            if(current.isWhitespace) {
-              new Token(EQSIGN)
-            } else if(current == '=') {
+          source.headOption match {
+            case Some(x) if x == '=' =>
+              source.next
               new Token(EQUALS)
-            } else {
-              parseBad
-            }
-          } else {
-            parseBad
+            case Some(_) | None =>
+              new Token(EQSIGN)
           }
         }
 
         def parseAnd : Token = {
-          if (source.hasNext) {
-            current = source.next
-            if (current == '&') {
+          source.headOption match {
+            case Some(x) if x == '&' =>
+              source.next
               new Token(AND)
-            } else {
+            case Some(_) | None =>
               parseBad
-            }
-          } else {
-            parseBad
           }
         }
 
         def parseOr : Token = {
-          if (source.hasNext) {
-            current = source.next
-            if (current == '|') {
+          source.headOption match {
+            case Some(x) if x == '|' =>
+              source.next
               new Token(OR)
-            } else {
+            case Some(_) | None =>
               parseBad
-            }
-          } else {
-            parseBad
           }
-
         }
 
-        def parseStr : Token = {
-          val b = new StringBuffer
-          current = source.next
-          while (current != '"') {
-            b.append(current)
-            current = source.next
+        def parseStr(b : StringBuffer) : Token = {
+          source.headOption match {
+            case Some(x) if x == '"' =>
+              source.next
+              new STRLIT(b.toString)
+            case Some(_) =>
+              b.append(source.next)
+              parseStr(b)
+            case None =>
+              parseBad
           }
-          new STRLIT(b.toString)
         }
 
         if (!source.hasNext) {
@@ -160,9 +151,9 @@ object Lexer extends Phase[File, Iterator[Token]] {
         } else {
           current = source.next
 
-          if (current == '/') parseCommentOrDiv
+          if (current == '/') parseCommentOrDiv(new StringBuffer().append(current))
           else if (current.isLetter) parseIdentOrKeword
-          else if (current.isDigit) parseIntLit
+          else if (current.isDigit) parseIntLit(new StringBuffer().append(current))
           else if (current == ':') new Token(COLON)
           else if (current == ';') new Token(SEMICOLON)
           else if (current == '.') new Token(DOT)
@@ -179,7 +170,7 @@ object Lexer extends Phase[File, Iterator[Token]] {
           else if (current == '+') new Token(PLUS)
           else if (current == '-') new Token(MINUS)
           else if (current == '*') new Token(TIMES)
-          else if (current == '"') parseStr
+          else if (current == '"') parseStr(new StringBuffer())
           else if (current.isWhitespace) next
           else parseBad
         }
