@@ -51,15 +51,27 @@ object Main {
   def main(args: Array[String]): Unit = {
     val ctx = processOptions(args)
 
-    // Run lexer phase if user specified a file
-    ctx.file match {
-      case Some(f) =>
-        val lex = Lexer.run(f)(ctx)
-        while(lex.hasNext) println(lex.next())
-      case None =>
-        println("punkt0c: fatal error: no input files.")
-        println(ctx)
-        sys.exit(1)
+    if(ctx.file.isEmpty) {
+      Reporter.error("fatal error: no input files.")
+      Reporter.terminateIfErrors()
     }
+
+    val f = ctx.file.get
+    val lex = Lexer.run(f)(ctx)
+
+    // Print tokens if option is present
+    if(ctx.doTokens) {
+      while(lex.hasNext) {
+        val n = lex.next()
+        println(n)
+      }
+      sys.exit(0)
+    }
+
+    // Start parsing using lexer iterator
+    while(lex.hasNext) {
+      lex.next()
+    }
+    Reporter.terminateIfErrors()
   }
 }

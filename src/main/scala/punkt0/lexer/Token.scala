@@ -2,7 +2,7 @@ package punkt0
 package lexer
 
 sealed class Token(val kind: TokenKind) extends Positioned {
-  override def toString: String = kind.toString
+  override def toString: String = kind.toString + "(" + line + ":" + column + ")"
 }
 
 sealed trait TokenKind
@@ -52,16 +52,16 @@ case object NEW extends TokenKind         // new
 case object PRINTLN extends TokenKind     // println
 
 // identifiers
-class ID(val value: String) extends Token(IDKIND) {
-  override def toString: String = "ID(" + value + ")"
+class ID(val value: String) extends Token(IDKIND) { // TODO: Is there a prettier way to write this toString?
+  override def toString: String = super.toString.replace("KIND(", "(" + value + ")(")
 }
 
 // integer literals
 class INTLIT(val value: Int) extends Token(INTLITKIND) {
-  override def toString: String = "INT(" + value + ")"
+  override def toString: String = super.toString.replace("KIND(", "(" + value + ")(")
 }
 
 // string literals
 class STRLIT(val value: String) extends Token(STRLITKIND) {
-  override def toString: String = "STR(" + value + ")"
+  override def toString: String = super.toString.replace("KIND(", "(" + value + ")(")
 }
