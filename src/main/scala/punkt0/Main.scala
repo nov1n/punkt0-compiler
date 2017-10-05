@@ -23,6 +23,10 @@ object Main {
         ctx = ctx.copy(doTokens = true)
         processOption(args)
 
+      case "--ast" :: args =>
+        ctx = ctx.copy(doAST = true)
+        processOption(args)
+
       case f :: args =>
         ctx = ctx.copy(file = Some(new File(f)))
         processOption(args)
@@ -46,6 +50,8 @@ object Main {
     println("Options include:")
     println(" --help        displays this help")
     println(" -d <outdir>   generates class files in the specified directory")
+    println(" --tokens      print tokens as parsed by the lexer")
+    println(" --ast         pretty print the ast")
   }
 
   def main(args: Array[String]): Unit = {
