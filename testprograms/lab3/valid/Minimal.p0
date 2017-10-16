@@ -1,7 +1,33 @@
+class Arr extends Hurr {
+    var j : Int = 0;
+    var next: Arr = new Empty();
+
+    override def Init(sz : Int, hurr : Boolean ) : Int = {
+        var k : Int = 0;
+        var aux01 : Int = 0;
+        var aux02 : Int = 0;
+
+        5;
+
+        7;
+        45;
+
+        "hey!";
+        true;
+        false;false;
+        this;
+        null;
+        size = sz;
+        hurr;
+        durr;
+        println("hey");
+        new Hello()
+    }
+}
+
 object Main extends App {
     var foo : Boolean = "foo";
 
-    println("hey");
     println("foo");
     println("bar")
 }

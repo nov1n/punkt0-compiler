@@ -53,7 +53,7 @@ file `Lexer.scala` and to implement the above `--tokens` option in
 
 | Non-terminal        |     | Definition                                                                                                                                                                                    |
 | ------------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| *Program*           | ::= | ( *ClassDeclaration* ) * *MainDeclaration* <EOF>                                                                                                                                              |
+| *Program*           | ::= | ( *ClassDeclaration* ) *MainDeclaration* <EOF>                                                                                                                                              |
 | *ClassDeclaration*  | ::= | **class** *Identifier* ( **extends** *Identifier* )? **{** ( *VarDeclaration* ) * ( *MethodDeclaration* ) * **}**                                                                             |
 | *MainDeclaration*   | ::= | **object** *Identifier* **extends** *Identifier* **{** ( *VarDeclaration* ) * *Expression* ( **;** *Expression* ) * **}**                                                  |
 | *VarDeclaration*    | ::= | **var** *Identifier* **:** *Type* **=** *Expression* **;**                                                                                                                                    |

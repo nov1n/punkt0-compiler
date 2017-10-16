@@ -3,6 +3,7 @@ package punkt0
 import java.io.File
 
 import lexer._
+import punkt0.ast.Trees._
 import punkt0.ast.{Parser, PrettyPrinter}
 
 

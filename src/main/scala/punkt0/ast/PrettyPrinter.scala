@@ -21,7 +21,7 @@ object PrettyPrinter {
     this
   }
 
-  def pprintAST(input: Tree) = {
+  def pprintAST(input: Tree): Unit = {
     var level = 0
     input.toString.foreach {
       case '(' =>

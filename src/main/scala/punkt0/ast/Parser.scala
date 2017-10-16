@@ -42,16 +42,45 @@ object Parser extends Phase[Iterator[Token], Program] {
       program
     }
 
-    // program ::=
+    // Program ::= ( ClassDeclaration ) MainDeclaration*
     def program : Program = {
       // classDeclaration // optional
-      Program(mainDeclaration, List()) // required
+      var classes = List[ClassDecl]()
+      while (currentToken.kind == CLASS) {
+        classes :+= classDecl
+      }
+      Program(mainDeclaration, classes)
+    }
+
+    // ClassDecl ::= class Identifier ( extends Identifier )? { ( VarDeclaration ) ( MethodDeclaration ) }
+    def classDecl : ClassDecl = {
+      eat(CLASS)
+      val id = identifier
+      var parent : Option[Identifier] = None
+      if(currentToken.kind == EXTENDS) {
+        eat(EXTENDS)
+        parent = Some(identifier)
+      }
+      eat(LBRACE)
+
+      var vars = List[VarDecl]()
+      var meths = List[MethodDecl]()
+
+      while (currentToken.kind == VAR) {
+        vars :+= varDeclaration
+      }
+
+      while (currentToken.kind == DEF || currentToken.kind == OVERRIDE) {
+        meths :+= methodDecl
+      }
+      eat(RBRACE)
+      ClassDecl(id, parent, vars, meths)
     }
 
     // MainDeclaration ::= object Identifier extends Identifier { ( VarDeclaration ) Expression ( ; Expression ) }
     def mainDeclaration : MainDecl = {
       eat(OBJECT)
-      val obj = identifier
+      val id = identifier
       eat(EXTENDS)
       val parent = identifier
       eat(LBRACE)
@@ -59,32 +88,19 @@ object Parser extends Phase[Iterator[Token], Program] {
       var vars = List[VarDecl]()
       var exprs = List[ExprTree]()
 
-      // 0 or more VarDeclarations
       while (currentToken.kind == VAR) {
         vars :+= varDeclaration
       }
 
-      // Exactly 1 Expression
       exprs :+= expression
 
-      // 0 or more ;Expression
       while (currentToken.kind == SEMICOLON) {
-        readToken // advance over ;
+        eat(SEMICOLON)
         exprs :+= expression
       }
 
       eat(RBRACE)
-      MainDecl(obj, parent, vars, exprs)
-    }
-
-    // Identifier	::=	<IDENTIFIER>
-    def identifier : Identifier = {
-      val idOpt = Try(currentToken.asInstanceOf[ID]).toOption
-      readToken
-      idOpt match {
-        case Some(x) => Identifier(x.value)
-        case None => expected(IDKIND)
-      }
+      MainDecl(id, parent, vars, exprs)
     }
 
     // VarDeclaration ::= var Identifier : Type = Expression ;
@@ -92,43 +108,136 @@ object Parser extends Phase[Iterator[Token], Program] {
       eat(VAR)
       val id = identifier
       eat(COLON)
-      val tpe : TypeTree = currentToken.kind match {
-        case BOOLEAN => readToken; BooleanType()
-        case INT => readToken; IntType()
-        case STRING => readToken; StringType()
-        case UNIT => readToken; UnitType()
-        case _ => identifier
-      }
+      val tpe = tipe
       eat(EQSIGN)
       val expr = expression
       eat(SEMICOLON)
       VarDecl(tpe, id, expr)
     }
 
+    // MethodDecl ::= ( override )? def Identifier ( ( Identifier : Type ( , Identifier : Type ) )? ) : Type = { ( VarDeclaration ) Expression ( ; Expression ) *}
+    def methodDecl : MethodDecl = {
+      var overide = false
+      if (currentToken.kind == OVERRIDE) {
+        overide = true
+        eat(OVERRIDE)
+      }
+      eat(DEF)
+      val id = identifier
+      eat(LPAREN)
+      var args = List[Formal]()
+      while (currentToken.kind != RPAREN) { // Parse arguments
+        if (currentToken.kind == COMMA) eat(COMMA)
+        val aid = identifier
+        eat(COLON)
+        val atype = tipe
+        args :+= Formal(atype, aid)
+      }
+      eat(RPAREN)
+      eat(COLON)
+      val ret = tipe
+      eat(EQSIGN)
+      eat(LBRACE)
+
+      var vars = List[VarDecl]()
+      var exprs = List[ExprTree]()
+
+      while (currentToken.kind == VAR) {
+        vars :+= varDeclaration
+      }
+
+      exprs :+= expression
+
+      while (currentToken.kind == SEMICOLON) {
+        eat(SEMICOLON)
+        exprs :+= expression
+      }
+
+      eat(RBRACE)
+      MethodDecl(overide, ret, id, args, vars, exprs.dropRight(1), exprs.last)
+    }
+
+    // Identifier	::=	<IDENTIFIER>
+    def identifier : Identifier = {
+      val idOpt = Try(currentToken.asInstanceOf[ID]).toOption
+      eat(IDKIND)
+      idOpt match {
+        case Some(x) => Identifier(x.value)
+        case None => expected(IDKIND)
+      }
+    }
+
+    // Type := Boolean|Int|String|Unit|Identifier
+    def tipe : TypeTree = currentToken.kind match {
+        case BOOLEAN => eat(BOOLEAN); BooleanType()
+        case INT => eat(INT); IntType()
+        case STRING => eat(STRING); StringType()
+        case UNIT => eat(UNIT); UnitType()
+        case _ => identifier
+    }
+
     // Expression ::=
-    def expression : ExprTree = {
-      if (currentToken.kind == PRINTLN) {
-        readToken // Advance over Println
+    def expression : ExprTree = currentToken.kind match {
+      // TODO: case binary operators
+      // TODO: case method calls
+      case INTLITKIND =>
+        val intLit = currentToken.asInstanceOf[INTLIT]
+        eat(INTLITKIND)
+        IntLit(intLit.value)
+      case STRLITKIND =>
+        val strLit = currentToken.asInstanceOf[STRLIT]
+        eat(STRLITKIND)
+        StringLit(strLit.value)
+      case TRUE =>
+        eat(TRUE)
+        True()
+      case FALSE =>
+        eat(FALSE)
+        False()
+      case IDKIND =>
+        val id = identifier
+        if (currentToken.kind == EQSIGN) {
+          eat(EQSIGN)
+          val expr = expression
+          Assign(id, expr)
+        } else {
+          id
+        }
+      case THIS =>
+        eat(THIS)
+        This()
+      case NULL =>
+        eat(NULL)
+        Null()
+      case NEW =>
+        eat(NEW)
+        val id = identifier
+        eat(LPAREN)
+        eat(RPAREN)
+        New(id)
+      case BANG =>
+        eat(BANG)
+        val expr = expression
+        Not(expr)
+      case LPAREN =>
+        eat(LPAREN)
+        val expr = expression
+        eat(RPAREN)
+        expr
+      // TODO: case LBRACE
+      // TODO: case if
+      // TODO: case while
+      case PRINTLN =>
+        eat(PRINTLN)
         eat(LPAREN) // Advance over (
         val t = expression // Recursion handles advancing lexer
         eat(RPAREN)
         Println(t)
-      } else if(currentToken.kind == STRLITKIND) {
-        val strLit = Try(currentToken.asInstanceOf[STRLIT]).toOption
-        readToken
-        strLit match {
-          case Some(x) => StringLit(x.value)
-          case None => expected(STRLITKIND)
-        }
-      } else {
-        readToken
-        This()
-      }
     }
 
     readToken
     val tree = parseGoal
-    terminateIfErrors
+    terminateIfErrors()
     tree
   }
 }
