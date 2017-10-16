@@ -21,7 +21,25 @@ class Arr extends Hurr {
         hurr;
         durr;
         println("hey");
-        new Hello()
+        if (hello) {
+            durr;
+            a = b;
+            beep;
+            boop
+        }
+        else {
+            klsdl;
+            koekoek;
+            thisd = harr;
+            burr
+        };
+        new Hello();
+
+        if (expr1) if (expr2) a = 1 else a;
+
+
+        while(aap)durr;
+        keep
     }
 }
 

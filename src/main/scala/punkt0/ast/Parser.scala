@@ -44,7 +44,7 @@ object Parser extends Phase[Iterator[Token], Program] {
 
     // Program ::= ( ClassDeclaration ) MainDeclaration*
     def program : Program = {
-      // classDeclaration // optional
+      // TODO: Add positions
       var classes = List[ClassDecl]()
       while (currentToken.kind == CLASS) {
         classes :+= classDecl
@@ -224,15 +224,45 @@ object Parser extends Phase[Iterator[Token], Program] {
         val expr = expression
         eat(RPAREN)
         expr
-      // TODO: case LBRACE
-      // TODO: case if
-      // TODO: case while
+      case LBRACE =>
+        eat(LBRACE)
+        var exprs = List[ExprTree]()
+
+        exprs :+= expression
+        while (currentToken.kind == SEMICOLON) {
+          eat(SEMICOLON)
+          exprs :+= expression
+        }
+        eat(RBRACE)
+        Block(exprs)
+      case IF =>
+        eat(IF)
+        eat(LPAREN)
+        val cond = expression
+        eat(RPAREN)
+        val ifBranch = expression
+        var elseBranch : Option[ExprTree] = None
+        if (currentToken.kind == ELSE) {
+          eat(ELSE)
+          val elseExpr = expression
+          elseBranch = Some(elseExpr)
+        }
+        If(cond,ifBranch, elseBranch)
+      case WHILE =>
+        eat(WHILE)
+        eat(LPAREN)
+        val cond = expression
+        eat(RPAREN)
+        val body = expression
+        While(cond, body)
       case PRINTLN =>
         eat(PRINTLN)
         eat(LPAREN) // Advance over (
         val t = expression // Recursion handles advancing lexer
         eat(RPAREN)
         Println(t)
+      case x =>
+        throw new RuntimeException("Invalid token" + x)
     }
 
     readToken
