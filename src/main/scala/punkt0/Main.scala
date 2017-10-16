@@ -3,6 +3,7 @@ package punkt0
 import java.io.File
 
 import lexer._
+import punkt0.ast.{Parser, PrettyPrinter}
 
 
 object Main {
@@ -73,11 +74,11 @@ object Main {
       }
       sys.exit(0)
     }
+    Reporter.terminateIfErrors()
 
     // Start parsing using lexer iterator
-    while(lex.hasNext) {
-      lex.next()
-    }
-    Reporter.terminateIfErrors()
+    PrettyPrinter.pprintAST(Parser.run(lex)(ctx))
   }
 }
+
+
