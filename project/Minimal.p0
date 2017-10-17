@@ -1,6 +1,7 @@
 class Arr extends Hurr {
     var j : Int = 0;
     var next: Arr = new Empty();
+    def update(index: Int, newval: Int): Unit = {{}}
 
     override def Init(sz : Int, hurr : Boolean ) : Int = {
         var k : Int = 0;
@@ -36,6 +37,9 @@ class Arr extends Hurr {
         new Hello();
 
         if (expr1) if (expr2) a = 1 else a;
+        aap.koek(hurr,durr);
+        4 / 3 * a.b();
+        a.b().c();
 
 
         while(aap)durr;

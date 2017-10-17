@@ -169,100 +169,169 @@ object Parser extends Phase[Iterator[Token], Program] {
 
     // Type := Boolean|Int|String|Unit|Identifier
     def tipe : TypeTree = currentToken.kind match {
-        case BOOLEAN => eat(BOOLEAN); BooleanType()
-        case INT => eat(INT); IntType()
-        case STRING => eat(STRING); StringType()
-        case UNIT => eat(UNIT); UnitType()
-        case _ => identifier
+      case BOOLEAN => eat(BOOLEAN); BooleanType()
+      case INT => eat(INT); IntType()
+      case STRING => eat(STRING); StringType()
+      case UNIT => eat(UNIT); UnitType()
+      case _ => identifier
     }
 
-    // Expression ::=
-    def expression : ExprTree = currentToken.kind match {
-      // TODO: case binary operators
-      // TODO: case method calls
-      case INTLITKIND =>
-        val intLit = currentToken.asInstanceOf[INTLIT]
-        eat(INTLITKIND)
-        IntLit(intLit.value)
-      case STRLITKIND =>
-        val strLit = currentToken.asInstanceOf[STRLIT]
-        eat(STRLITKIND)
-        StringLit(strLit.value)
-      case TRUE =>
-        eat(TRUE)
-        True()
-      case FALSE =>
-        eat(FALSE)
-        False()
-      case IDKIND =>
-        val id = identifier
-        if (currentToken.kind == EQSIGN) {
-          eat(EQSIGN)
-          val expr = expression
-          Assign(id, expr)
-        } else {
-          id
-        }
-      case THIS =>
-        eat(THIS)
-        This()
-      case NULL =>
-        eat(NULL)
-        Null()
-      case NEW =>
-        eat(NEW)
-        val id = identifier
-        eat(LPAREN)
-        eat(RPAREN)
-        New(id)
-      case BANG =>
-        eat(BANG)
-        val expr = expression
-        Not(expr)
-      case LPAREN =>
-        eat(LPAREN)
-        val expr = expression
-        eat(RPAREN)
-        expr
-      case LBRACE =>
-        eat(LBRACE)
-        var exprs = List[ExprTree]()
+    // Expr := Expression ( && | || | == | < | + | - | * | / ) Expression
+    // Expr := Expression . Identifier ( ( Expression ( , Expression ) )? *)
+    def expression : ExprTree = {
+      var res = termOrMethod
 
-        exprs :+= expression
-        while (currentToken.kind == SEMICOLON) {
-          eat(SEMICOLON)
-          exprs :+= expression
+      // Termlist
+      while (currentToken.kind == TIMES ||
+        currentToken.kind == DIV ||
+        currentToken.kind == PLUS ||
+        currentToken.kind == MINUS ||
+        currentToken.kind == LESSTHAN ||
+        currentToken.kind == EQUALS ||
+        currentToken.kind == AND ||
+        currentToken.kind == OR
+      ) {
+        res = currentToken.kind match {
+          case TIMES =>
+            eat(TIMES)
+            Times(res, termOrMethod)
+          case DIV =>
+            eat(DIV)
+            Div(res, termOrMethod)
+          case PLUS =>
+            eat(PLUS)
+            Plus(res, termOrMethod)
+          case MINUS =>
+            eat(MINUS)
+            Minus(res, termOrMethod)
+          case LESSTHAN =>
+            eat(LESSTHAN)
+            LessThan(res, termOrMethod)
+          case EQUALS =>
+            eat(EQUALS)
+            Equals(res, expression)
+          case AND =>
+            eat(AND)
+            And(res, expression)
+          case OR =>
+            eat(OR)
+            Or(res, expression)
+          case x =>
+            throw new RuntimeException("Invalid token" + x)
         }
-        eat(RBRACE)
-        Block(exprs)
-      case IF =>
-        eat(IF)
+      }
+      res
+    }
+
+    def termOrMethod : ExprTree = {
+      var obj = term
+
+      while (currentToken.kind == DOT) {
+        eat(DOT)
+        val meth = identifier
         eat(LPAREN)
-        val cond = expression
-        eat(RPAREN)
-        val ifBranch = expression
-        var elseBranch : Option[ExprTree] = None
-        if (currentToken.kind == ELSE) {
-          eat(ELSE)
-          val elseExpr = expression
-          elseBranch = Some(elseExpr)
+        var args = List[ExprTree]()
+        while (currentToken.kind != RPAREN) {
+          if (currentToken.kind == COMMA) eat(COMMA)
+          args :+= expression
         }
-        If(cond,ifBranch, elseBranch)
-      case WHILE =>
-        eat(WHILE)
-        eat(LPAREN)
-        val cond = expression
         eat(RPAREN)
-        val body = expression
-        While(cond, body)
-      case PRINTLN =>
-        eat(PRINTLN)
-        eat(LPAREN) // Advance over (
-        val t = expression // Recursion handles advancing lexer
-        eat(RPAREN)
-        Println(t)
-      case x =>
-        throw new RuntimeException("Invalid token" + x)
+        obj = MethodCall(obj, meth, args)
+      }
+      obj
+    }
+
+    // Term ::=
+    def term : ExprTree = {
+      val res = currentToken.kind match {
+        case INTLITKIND =>
+          val intLit = currentToken.asInstanceOf[INTLIT]
+          eat(INTLITKIND)
+          IntLit(intLit.value)
+        case STRLITKIND =>
+          val strLit = currentToken.asInstanceOf[STRLIT]
+          eat(STRLITKIND)
+          StringLit(strLit.value)
+        case TRUE =>
+          eat(TRUE)
+          True()
+        case FALSE =>
+          eat(FALSE)
+          False()
+        case IDKIND =>
+          val id = identifier
+          if (currentToken.kind == EQSIGN) {
+            eat(EQSIGN)
+            val expr = expression
+            Assign(id, expr)
+          } else {
+            id
+          }
+        case THIS =>
+          eat(THIS)
+          This()
+        case NULL =>
+          eat(NULL)
+          Null()
+        case NEW =>
+          eat(NEW)
+          val id = identifier
+          eat(LPAREN)
+          eat(RPAREN)
+          New(id)
+        case BANG =>
+          eat(BANG)
+          val expr = expression
+          Not(expr)
+        case LPAREN =>
+          eat(LPAREN)
+          val expr = expression
+          eat(RPAREN)
+          expr
+        case LBRACE =>
+          eat(LBRACE)
+          var exprs = List[ExprTree]()
+
+          if (currentToken.kind != RBRACE) {
+            exprs :+= expression
+            while (currentToken.kind == SEMICOLON) {
+              eat(SEMICOLON)
+              exprs :+= expression
+            }
+          }
+          eat(RBRACE)
+
+          Block(exprs)
+        case IF =>
+          eat(IF)
+          eat(LPAREN)
+          val cond = expression
+          eat(RPAREN)
+          val ifBranch = expression
+          var elseBranch: Option[ExprTree] = None
+          if (currentToken.kind == ELSE) {
+            eat(ELSE)
+            val elseExpr = expression
+            elseBranch = Some(elseExpr)
+          }
+          If(cond, ifBranch, elseBranch)
+        case WHILE =>
+          eat(WHILE)
+          eat(LPAREN)
+          val cond = expression
+          eat(RPAREN)
+          val body = expression
+          While(cond, body)
+        case PRINTLN =>
+          eat(PRINTLN)
+          eat(LPAREN) // Advance over (
+          val t = expression // Recursion handles advancing lexer
+          eat(RPAREN)
+          Println(t)
+        case x =>
+          throw new RuntimeException("Invalid token" + x)
+      }
+      res
     }
 
     readToken
