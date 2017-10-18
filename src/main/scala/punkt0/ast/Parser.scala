@@ -38,13 +38,10 @@ object Parser extends Phase[Iterator[Token], Program] {
       fatal("expected: " + (kind::more.toList).mkString(" or ") + ", found: " + currentToken, currentToken)
     }
 
-    def parseGoal: Program = {
-      program
-    }
+    def parseGoal: Program = program
 
-    // Program ::= ( ClassDeclaration ) MainDeclaration*
+    /** Program ::= ( ClassDecl ) MainDecl */
     def program : Program = {
-      // TODO: Add positions
       var classes = List[ClassDecl]()
       while (currentToken.kind == CLASS) {
         classes :+= classDecl
@@ -52,7 +49,7 @@ object Parser extends Phase[Iterator[Token], Program] {
       Program(mainDeclaration, classes)
     }
 
-    // ClassDecl ::= class Identifier ( extends Identifier )? { ( VarDeclaration ) ( MethodDeclaration ) }
+    /** ClassDecl ::= class Identifier ( extends Identifier )? { ( VarDecl ) ( MethodDecl ) } */
     def classDecl : ClassDecl = {
       eat(CLASS)
       val id = identifier
@@ -62,14 +59,11 @@ object Parser extends Phase[Iterator[Token], Program] {
         parent = Some(identifier)
       }
       eat(LBRACE)
-
       var vars = List[VarDecl]()
       var meths = List[MethodDecl]()
-
       while (currentToken.kind == VAR) {
         vars :+= varDeclaration
       }
-
       while (currentToken.kind == DEF || currentToken.kind == OVERRIDE) {
         meths :+= methodDecl
       }
@@ -77,33 +71,28 @@ object Parser extends Phase[Iterator[Token], Program] {
       ClassDecl(id, parent, vars, meths)
     }
 
-    // MainDeclaration ::= object Identifier extends Identifier { ( VarDeclaration ) Expression ( ; Expression ) }
+    /** MainDecl ::= object Identifier extends Identifier { ( VarDecl ) Expression ( ; Expression ) } */
     def mainDeclaration : MainDecl = {
       eat(OBJECT)
       val id = identifier
       eat(EXTENDS)
       val parent = identifier
       eat(LBRACE)
-
       var vars = List[VarDecl]()
       var exprs = List[ExprTree]()
-
       while (currentToken.kind == VAR) {
         vars :+= varDeclaration
       }
-
       exprs :+= expression
-
       while (currentToken.kind == SEMICOLON) {
         eat(SEMICOLON)
         exprs :+= expression
       }
-
       eat(RBRACE)
       MainDecl(id, parent, vars, exprs)
     }
 
-    // VarDeclaration ::= var Identifier : Type = Expression ;
+    /** VarDecl ::= var Identifier : Tipe = Expression ; */
     def varDeclaration : VarDecl = {
       eat(VAR)
       val id = identifier
@@ -115,7 +104,7 @@ object Parser extends Phase[Iterator[Token], Program] {
       VarDecl(tpe, id, expr)
     }
 
-    // MethodDecl ::= ( override )? def Identifier ( ( Identifier : Type ( , Identifier : Type ) )? ) : Type = { ( VarDeclaration ) Expression ( ; Expression ) *}
+    /** ( override )? def Identifier ( ( Identifier : Tipe ( , Identifier : Tipe ) )? ) : Tipe = { ( VarDecl ) Expression ( ; Expression ) *} */
     def methodDecl : MethodDecl = {
       var overide = false
       if (currentToken.kind == OVERRIDE) {
@@ -126,7 +115,7 @@ object Parser extends Phase[Iterator[Token], Program] {
       val id = identifier
       eat(LPAREN)
       var args = List[Formal]()
-      while (currentToken.kind != RPAREN) { // Parse arguments
+      while (currentToken.kind != RPAREN) {
         if (currentToken.kind == COMMA) eat(COMMA)
         val aid = identifier
         eat(COLON)
@@ -157,7 +146,7 @@ object Parser extends Phase[Iterator[Token], Program] {
       MethodDecl(overide, ret, id, args, vars, exprs.dropRight(1), exprs.last)
     }
 
-    // Identifier	::=	<IDENTIFIER>
+    /** Identifier ::= <\IDENTIFIER/> */
     def identifier : Identifier = {
       val idOpt = Try(currentToken.asInstanceOf[ID]).toOption
       eat(IDKIND)
@@ -167,7 +156,11 @@ object Parser extends Phase[Iterator[Token], Program] {
       }
     }
 
-    // Type := Boolean|Int|String|Unit|Identifier
+    /** Tipe ::= Boolean
+               | Int
+               | String
+               | Unit
+               | Identifier */
     def tipe : TypeTree = currentToken.kind match {
       case BOOLEAN => eat(BOOLEAN); BooleanType()
       case INT => eat(INT); IntType()
@@ -176,56 +169,98 @@ object Parser extends Phase[Iterator[Token], Program] {
       case _ => identifier
     }
 
-    // Expr := Expression ( && | || | == | < | + | - | * | / ) Expression
-    // Expr := Expression . Identifier ( ( Expression ( , Expression ) )? *)
-    def expression : ExprTree = {
-      var res = termOrMethod
+    /** Expression ::= Disjunction
+      *
+      * grammar for expressions is in the order of operator precedence
+      * */
+    def expression : ExprTree = disjunction
 
-      // Termlist
-      while (currentToken.kind == TIMES ||
-        currentToken.kind == DIV ||
-        currentToken.kind == PLUS ||
-        currentToken.kind == MINUS ||
-        currentToken.kind == LESSTHAN ||
-        currentToken.kind == EQUALS ||
-        currentToken.kind == AND ||
-        currentToken.kind == OR
-      ) {
-        res = currentToken.kind match {
-          case TIMES =>
-            eat(TIMES)
-            Times(res, termOrMethod)
-          case DIV =>
-            eat(DIV)
-            Div(res, termOrMethod)
-          case PLUS =>
-            eat(PLUS)
-            Plus(res, termOrMethod)
-          case MINUS =>
-            eat(MINUS)
-            Minus(res, termOrMethod)
-          case LESSTHAN =>
-            eat(LESSTHAN)
-            LessThan(res, termOrMethod)
-          case EQUALS =>
-            eat(EQUALS)
-            Equals(res, expression)
-          case AND =>
-            eat(AND)
-            And(res, expression)
-          case OR =>
-            eat(OR)
-            Or(res, expression)
-          case x =>
-            throw new RuntimeException("Invalid token" + x)
+    /** Expression ::= Conjunction ('||' Conjunction)*
+      *
+      * left associative
+      * */
+    def disjunction : ExprTree = {
+      var res = conjunction
+      while (currentToken.kind == OR) {
+          eat(OR)
+          res = Or(res, conjunction)
+      }
+      res
+    }
+
+    /** Conjunction ::= Equalities ('&&' Equalities)*
+      *
+      * left associative
+      * */
+    def conjunction : ExprTree = {
+      var res = equalities
+      while (currentToken.kind == AND) {
+        eat(AND)
+        res = And(res, equalities)
+      }
+      res
+    }
+
+    /** Equalities ::= AdditionSubtraction ( '<=' | '==' AdditionSubtraction )*
+      *
+      * left associative
+      * */
+    def equalities : ExprTree = {
+      var res = additionSubtraction
+      while ( currentToken.kind == LESSTHAN || currentToken.kind == EQUALS) {
+        if (currentToken.kind == LESSTHAN) {
+          eat(LESSTHAN)
+          res = LessThan(res, additionSubtraction)
+        } else if (currentToken.kind == EQUALS) {
+          eat(EQUALS)
+          res = Equals(res, additionSubtraction)
         }
       }
       res
     }
 
-    def termOrMethod : ExprTree = {
-      var obj = term
+    /** AdditionSubtraction ::= DivTimes ( '+' | '-'  DivTimes)*
+      *
+      * left associative
+      * */
+    def additionSubtraction : ExprTree = {
+      var res = divTimes
+      while ( currentToken.kind == PLUS || currentToken.kind == MINUS) {
+        if (currentToken.kind == PLUS) {
+          eat(PLUS)
+          res = Plus(res, divTimes)
+        } else if (currentToken.kind == MINUS) {
+          eat(MINUS)
+          res = Minus(res, divTimes)
+        }
+      }
+      res
+    }
 
+    /** DivTimes ::= TermMethod ( '/' | '*'  termMethod)*
+      *
+      * left associative
+      * */
+    def divTimes : ExprTree = {
+      var res = termMethod
+      while ( currentToken.kind == DIV || currentToken.kind == TIMES) {
+        if (currentToken.kind == DIV) {
+          eat(DIV)
+          res = Div(res, termMethod)
+        } else if (currentToken.kind == TIMES) {
+          eat(TIMES)
+          res = Times(res, termMethod)
+        }
+      }
+      res
+    }
+
+    /** TermMethod ::= Term ('.'  Identifier '(' Expression (',' Expression)* ')' )*
+      *
+      * left associative
+      * */
+    def termMethod : ExprTree = {
+      var obj = term
       while (currentToken.kind == DOT) {
         eat(DOT)
         val meth = identifier
@@ -241,7 +276,22 @@ object Parser extends Phase[Iterator[Token], Program] {
       obj
     }
 
-    // Term ::=
+
+    /** Term ::= <\INTEGER_LITERAL/>
+               | <\STRING_LITERAL/>
+               | true
+               | false
+               | Identifier ('=' Expression)?
+               | this
+               | null
+               | new Identifier '()'
+               | ! Expression
+               | ( Expression )
+               | { ( Expression ( ; Expression ) )? *}
+               | if ( Expression ) Expression ( else Expression )?
+               | while ( Expression ) Expression
+               | println ( Expression )
+      * */
     def term : ExprTree = {
       val res = currentToken.kind match {
         case INTLITKIND =>
@@ -281,7 +331,7 @@ object Parser extends Phase[Iterator[Token], Program] {
           New(id)
         case BANG =>
           eat(BANG)
-          val expr = expression
+          val expr = termMethod // Binds tightest
           Not(expr)
         case LPAREN =>
           eat(LPAREN)
@@ -291,7 +341,6 @@ object Parser extends Phase[Iterator[Token], Program] {
         case LBRACE =>
           eat(LBRACE)
           var exprs = List[ExprTree]()
-
           if (currentToken.kind != RBRACE) {
             exprs :+= expression
             while (currentToken.kind == SEMICOLON) {
@@ -300,7 +349,6 @@ object Parser extends Phase[Iterator[Token], Program] {
             }
           }
           eat(RBRACE)
-
           Block(exprs)
         case IF =>
           eat(IF)
@@ -324,12 +372,13 @@ object Parser extends Phase[Iterator[Token], Program] {
           While(cond, body)
         case PRINTLN =>
           eat(PRINTLN)
-          eat(LPAREN) // Advance over (
-          val t = expression // Recursion handles advancing lexer
+          eat(LPAREN)
+          val t = expression
           eat(RPAREN)
           Println(t)
         case x =>
-          throw new RuntimeException("Invalid token" + x)
+          Reporter.error("invalid token: " + x)
+          Null() // TODO: What to do here?
       }
       res
     }
