@@ -12,7 +12,7 @@ object Parser extends Phase[Iterator[Token], Program] {
     /** Store the current token, as read from the lexer. */
     var currentToken: Token = new Token(BAD)
 
-    def readToken: Unit = {
+    def readToken(): Unit = {
       if (tokens.hasNext) {
         // uses nextToken from the Lexer trait
         currentToken = tokens.next
@@ -27,7 +27,7 @@ object Parser extends Phase[Iterator[Token], Program] {
     /** ''Eats'' the expected token, or terminates with an error. */
     def eat(kind: TokenKind): Unit = {
       if (currentToken.kind == kind) {
-        readToken
+        readToken()
       } else {
         expected(kind)
       }
@@ -42,15 +42,17 @@ object Parser extends Phase[Iterator[Token], Program] {
 
     /** Program ::= ( ClassDecl ) MainDecl */
     def program : Program = {
+      val startToken = currentToken
       var classes = List[ClassDecl]()
       while (currentToken.kind == CLASS) {
         classes :+= classDecl
       }
-      Program(mainDeclaration, classes)
+      Program(mainDeclaration, classes).setPos(startToken)
     }
 
     /** ClassDecl ::= class Identifier ( extends Identifier )? { ( VarDecl ) ( MethodDecl ) } */
     def classDecl : ClassDecl = {
+      val startToken = currentToken
       eat(CLASS)
       val id = identifier
       var parent : Option[Identifier] = None
@@ -68,11 +70,12 @@ object Parser extends Phase[Iterator[Token], Program] {
         meths :+= methodDecl
       }
       eat(RBRACE)
-      ClassDecl(id, parent, vars, meths)
+      ClassDecl(id, parent, vars, meths).setPos(startToken)
     }
 
     /** MainDecl ::= object Identifier extends Identifier { ( VarDecl ) Expression ( ; Expression ) } */
     def mainDeclaration : MainDecl = {
+      val startToken = currentToken
       eat(OBJECT)
       val id = identifier
       eat(EXTENDS)
@@ -89,11 +92,12 @@ object Parser extends Phase[Iterator[Token], Program] {
         exprs :+= expression
       }
       eat(RBRACE)
-      MainDecl(id, parent, vars, exprs)
+      MainDecl(id, parent, vars, exprs).setPos(startToken)
     }
 
     /** VarDecl ::= var Identifier : Tipe = Expression ; */
     def varDeclaration : VarDecl = {
+      val startToken = currentToken
       eat(VAR)
       val id = identifier
       eat(COLON)
@@ -101,11 +105,12 @@ object Parser extends Phase[Iterator[Token], Program] {
       eat(EQSIGN)
       val expr = expression
       eat(SEMICOLON)
-      VarDecl(tpe, id, expr)
+      VarDecl(tpe, id, expr).setPos(startToken)
     }
 
     /** ( override )? def Identifier ( ( Identifier : Tipe ( , Identifier : Tipe ) )? ) : Tipe = { ( VarDecl ) Expression ( ; Expression ) *} */
     def methodDecl : MethodDecl = {
+      val startToken = currentToken
       var overide = false
       if (currentToken.kind == OVERRIDE) {
         overide = true
@@ -117,10 +122,11 @@ object Parser extends Phase[Iterator[Token], Program] {
       var args = List[Formal]()
       while (currentToken.kind != RPAREN) {
         if (currentToken.kind == COMMA) eat(COMMA)
+        val startToken = currentToken
         val aid = identifier
         eat(COLON)
         val atype = tipe
-        args :+= Formal(atype, aid)
+        args :+= Formal(atype, aid).setPos(startToken)
       }
       eat(RPAREN)
       eat(COLON)
@@ -143,15 +149,17 @@ object Parser extends Phase[Iterator[Token], Program] {
       }
 
       eat(RBRACE)
-      MethodDecl(overide, ret, id, args, vars, exprs.dropRight(1), exprs.last)
+      MethodDecl(overide, ret, id, args, vars, exprs.dropRight(1), exprs.last).setPos(startToken)
     }
 
     /** Identifier ::= <\IDENTIFIER/> */
     def identifier : Identifier = {
+      val startToken = currentToken
       val idOpt = Try(currentToken.asInstanceOf[ID]).toOption
       eat(IDKIND)
       idOpt match {
-        case Some(x) => Identifier(x.value)
+        case Some(x) =>
+          Identifier(x.value).setPos(startToken)
         case None => expected(IDKIND)
       }
     }
@@ -161,12 +169,15 @@ object Parser extends Phase[Iterator[Token], Program] {
                | String
                | Unit
                | Identifier */
-    def tipe : TypeTree = currentToken.kind match {
-      case BOOLEAN => eat(BOOLEAN); BooleanType()
-      case INT => eat(INT); IntType()
-      case STRING => eat(STRING); StringType()
-      case UNIT => eat(UNIT); UnitType()
-      case _ => identifier
+    def tipe : TypeTree = {
+      val startToken = currentToken
+      currentToken.kind match {
+        case BOOLEAN => eat(BOOLEAN); BooleanType().setPos(startToken)
+        case INT => eat(INT); IntType().setPos(startToken)
+        case STRING => eat(STRING); StringType().setPos(startToken)
+        case UNIT => eat(UNIT); UnitType().setPos(startToken)
+        case _ => identifier
+      }
     }
 
     /** Expression ::= Disjunction
@@ -180,10 +191,11 @@ object Parser extends Phase[Iterator[Token], Program] {
       * left associative
       * */
     def disjunction : ExprTree = {
+      val startToken = currentToken
       var res = conjunction
       while (currentToken.kind == OR) {
           eat(OR)
-          res = Or(res, conjunction)
+          res = Or(res, conjunction).setPos(startToken)
       }
       res
     }
@@ -193,10 +205,11 @@ object Parser extends Phase[Iterator[Token], Program] {
       * left associative
       * */
     def conjunction : ExprTree = {
+      var startToken = currentToken
       var res = equalities
       while (currentToken.kind == AND) {
         eat(AND)
-        res = And(res, equalities)
+        res = And(res, equalities).setPos(startToken)
       }
       res
     }
@@ -206,14 +219,15 @@ object Parser extends Phase[Iterator[Token], Program] {
       * left associative
       * */
     def equalities : ExprTree = {
+      val startToken = currentToken
       var res = additionSubtraction
       while ( currentToken.kind == LESSTHAN || currentToken.kind == EQUALS) {
         if (currentToken.kind == LESSTHAN) {
           eat(LESSTHAN)
-          res = LessThan(res, additionSubtraction)
+          res = LessThan(res, additionSubtraction).setPos(startToken)
         } else if (currentToken.kind == EQUALS) {
           eat(EQUALS)
-          res = Equals(res, additionSubtraction)
+          res = Equals(res, additionSubtraction).setPos(startToken)
         }
       }
       res
@@ -224,14 +238,15 @@ object Parser extends Phase[Iterator[Token], Program] {
       * left associative
       * */
     def additionSubtraction : ExprTree = {
+      val startToken = currentToken
       var res = divTimes
       while ( currentToken.kind == PLUS || currentToken.kind == MINUS) {
         if (currentToken.kind == PLUS) {
           eat(PLUS)
-          res = Plus(res, divTimes)
+          res = Plus(res, divTimes).setPos(startToken)
         } else if (currentToken.kind == MINUS) {
           eat(MINUS)
-          res = Minus(res, divTimes)
+          res = Minus(res, divTimes).setPos(startToken)
         }
       }
       res
@@ -242,14 +257,15 @@ object Parser extends Phase[Iterator[Token], Program] {
       * left associative
       * */
     def divTimes : ExprTree = {
+      val startToken = currentToken
       var res = termMethod
       while ( currentToken.kind == DIV || currentToken.kind == TIMES) {
         if (currentToken.kind == DIV) {
           eat(DIV)
-          res = Div(res, termMethod)
+          res = Div(res, termMethod).setPos(startToken)
         } else if (currentToken.kind == TIMES) {
           eat(TIMES)
-          res = Times(res, termMethod)
+          res = Times(res, termMethod).setPos(startToken)
         }
       }
       res
@@ -260,6 +276,7 @@ object Parser extends Phase[Iterator[Token], Program] {
       * left associative
       * */
     def termMethod : ExprTree = {
+      val startToken = currentToken
       var obj = term
       while (currentToken.kind == DOT) {
         eat(DOT)
@@ -273,7 +290,7 @@ object Parser extends Phase[Iterator[Token], Program] {
         eat(RPAREN)
         obj = MethodCall(obj, meth, args)
       }
-      obj
+      obj.setPos(startToken)
     }
 
 
@@ -293,46 +310,47 @@ object Parser extends Phase[Iterator[Token], Program] {
                | println ( Expression )
       * */
     def term : ExprTree = {
+      val startToken = currentToken
       val res = currentToken.kind match {
         case INTLITKIND =>
           val intLit = currentToken.asInstanceOf[INTLIT]
           eat(INTLITKIND)
-          IntLit(intLit.value)
+          IntLit(intLit.value).setPos(startToken)
         case STRLITKIND =>
           val strLit = currentToken.asInstanceOf[STRLIT]
           eat(STRLITKIND)
-          StringLit(strLit.value)
+          StringLit(strLit.value).setPos(startToken)
         case TRUE =>
           eat(TRUE)
-          True()
+          True().setPos(startToken)
         case FALSE =>
           eat(FALSE)
-          False()
+          False().setPos(startToken)
         case IDKIND =>
           val id = identifier
           if (currentToken.kind == EQSIGN) {
             eat(EQSIGN)
             val expr = expression
-            Assign(id, expr)
+            Assign(id, expr).setPos(startToken)
           } else {
             id
           }
         case THIS =>
           eat(THIS)
-          This()
+          This().setPos(startToken)
         case NULL =>
           eat(NULL)
-          Null()
+          Null().setPos(startToken)
         case NEW =>
           eat(NEW)
           val id = identifier
           eat(LPAREN)
           eat(RPAREN)
-          New(id)
+          New(id).setPos(startToken)
         case BANG =>
           eat(BANG)
           val expr = termMethod // Binds tightest
-          Not(expr)
+          Not(expr).setPos(startToken)
         case LPAREN =>
           eat(LPAREN)
           val expr = expression
@@ -349,7 +367,7 @@ object Parser extends Phase[Iterator[Token], Program] {
             }
           }
           eat(RBRACE)
-          Block(exprs)
+          Block(exprs).setPos(startToken)
         case IF =>
           eat(IF)
           eat(LPAREN)
@@ -362,28 +380,28 @@ object Parser extends Phase[Iterator[Token], Program] {
             val elseExpr = expression
             elseBranch = Some(elseExpr)
           }
-          If(cond, ifBranch, elseBranch)
+          If(cond, ifBranch, elseBranch).setPos(startToken)
         case WHILE =>
           eat(WHILE)
           eat(LPAREN)
           val cond = expression
           eat(RPAREN)
           val body = expression
-          While(cond, body)
+          While(cond, body).setPos(startToken)
         case PRINTLN =>
           eat(PRINTLN)
           eat(LPAREN)
           val t = expression
           eat(RPAREN)
-          Println(t)
+          Println(t).setPos(startToken)
         case x =>
           Reporter.error("invalid token: " + x)
-          Null() // TODO: What to do here?
+          Null().setPos(startToken) // TODO: What to do here?
       }
       res
     }
 
-    readToken
+    readToken()
     val tree = parseGoal
     terminateIfErrors()
     tree
