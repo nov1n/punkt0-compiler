@@ -83,9 +83,9 @@ object Main {
         val n = lex.next()
         println(n)
       }
-      sys.exit(0)
     }
     Reporter.terminateIfErrors()
+    if(ctx.doTokens) sys.exit(0)
 
     // Start parsing using lexer iterator
     val parsed = Parser.run(lex)(ctx)

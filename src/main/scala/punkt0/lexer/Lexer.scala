@@ -41,6 +41,7 @@ object Lexer extends Phase[File, Iterator[Token]] {
             case Some(x) if x == '*' =>
               // Advance until we find the */
               while (b.indexOf("*/") == -1) {
+                if(b.length() > 1 && b.substring(2).indexOf("/*") != -1) return parseBad("nested block comment")
                 if(bufferedSource.hasNext) {
                   b.append(bufferedSource.next)
                 } else {
