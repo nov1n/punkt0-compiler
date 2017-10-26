@@ -395,7 +395,7 @@ object Parser extends Phase[Iterator[Token], Program] {
           eat(RPAREN)
           Println(t).setPos(startToken)
         case x =>
-          Reporter.error("invalid token: " + x)
+          Reporter.error("invalid token: " + x + " at position " + currentToken.posString)
           Null().setPos(startToken) // TODO: What to do here?
       }
       res

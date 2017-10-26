@@ -9,6 +9,7 @@ import punkt0.Reporter
 class ParserTest extends FlatSpec with Matchers {
 
   "The AST object" should "produce correct ASTs from source code" in {
+    println("--- AST ---")
     val d = new File("./testprograms/lab3/valid")
     val files = d.listFiles.filter(_.isFile).toList
     files.filter(x => !x.getName.contains(".ast")).foreach(f => {
@@ -39,6 +40,41 @@ class ParserTest extends FlatSpec with Matchers {
 
       // Run parser
       //Parser.run(lex)(ctx).toString.trim
+    })
+  }
+
+  it should "print(parse(P)) = print(parse(print(parse(P))))" in {
+    println()
+    println("--- Printer ---")
+    val d = new File("./testprograms/lab3/valid")
+    val files = d.listFiles.filter(_.isFile).toList
+    files.filter(x => !x.getName.contains(".ast")).foreach(f => {
+      val ctx = Context()
+      val lex = Lexer.run(f)(ctx)
+      Reporter.terminateIfErrors()
+
+      // Pretty print parsed
+      val parsed = Parser.run(lex)(ctx)
+      val printParse = Printer.apply(parsed)
+
+      // Run parser on pretty printed output
+      val tmp = File.createTempFile(f.getName, ".pp")
+      val fw = new FileWriter(tmp)
+      fw.write(printParse)
+      fw.close()
+      val ctx2 = Context()
+      val lex2 = Lexer.run(tmp)(ctx2)
+      val printParsePrintParse = Printer.apply(Parser.run(lex2)(ctx))
+
+      if (printParse != printParsePrintParse) {
+        println("x - " + tmp.getName)
+      }
+      else {
+        println("v - " + tmp.getName)
+        tmp.delete()
+      }
+
+      printParse should equal (printParsePrintParse)
     })
   }
 }
