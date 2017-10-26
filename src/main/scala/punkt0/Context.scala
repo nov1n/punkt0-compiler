@@ -10,5 +10,6 @@ case class Context(
   doPrintMain: Boolean = false,
   doTokens: Boolean = false,
   doAST: Boolean = false,
+  doASTree: Boolean = false,
   doSymbolIds: Boolean = false,
 )

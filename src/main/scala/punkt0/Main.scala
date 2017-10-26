@@ -4,7 +4,7 @@ import java.io.File
 
 import lexer._
 import punkt0.ast.Trees._
-import punkt0.ast.{Parser, PrettyPrinter}
+import punkt0.ast.{Parser, Printer, PrinterTree}
 
 
 object Main {
@@ -27,6 +27,14 @@ object Main {
 
       case "--ast" :: args =>
         ctx = ctx.copy(doAST = true)
+        processOption(args)
+
+      case "--astree" :: args =>
+        ctx = ctx.copy(doASTree = true)
+        processOption(args)
+
+      case "--print" :: args =>
+        ctx = ctx.copy(doPrintMain = true)
         processOption(args)
 
       case f :: args =>
@@ -53,7 +61,9 @@ object Main {
     println(" --help        displays this help")
     println(" -d <outdir>   generates class files in the specified directory")
     println(" --tokens      print tokens as parsed by the lexer")
-    println(" --ast         pretty print the ast")
+    println(" --ast         print the ast")
+    println(" --astree      print the ast as a tree")
+    println(" --pretty      pretty print the ast")
   }
 
   def main(args: Array[String]): Unit = {
@@ -78,7 +88,17 @@ object Main {
     Reporter.terminateIfErrors()
 
     // Start parsing using lexer iterator
-    PrettyPrinter.pprintAST(Parser.run(lex)(ctx))
+    val parsed = Parser.run(lex)(ctx)
+
+    if(ctx.doASTree) {
+      val tree = PrinterTree.apply(parsed)
+      print(tree)
+    } else if(ctx.doPrintMain) {
+      val pretty = Printer.apply(parsed)
+      print(pretty)
+    } else if(ctx.doAST) {
+      println(parsed.toString)
+    }
   }
 }
 

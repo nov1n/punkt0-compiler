@@ -3,7 +3,7 @@ package punkt0.ast
 import punkt0.ast.Trees.{Program, Tree}
 
 // Adapted from https://github.com/Azard/Rattata/blob/master/src/main/scala/me/azard/rattata/Rattata.scala
-object PrettyPrinter {
+object PrinterTree {
   private var showLine = true
   private var tabSize = 4
 
@@ -21,35 +21,36 @@ object PrettyPrinter {
     this
   }
 
-  def pprintAST(input : Tree) : Unit = {
-    pprintAST(input.toString)
+  def apply(input : Tree) : String = {
+    apply(input.toString)
   }
 
-  def pprintAST(input: String): Unit = {
+  def apply(input: String): String = {
+    var res = new StringBuilder
     var level = 0
     input.foreach {
       case '(' =>
         level += 1
-        println()
+        res.append("\n")
         if (showLine) {
-          print(("|" + " "*(tabSize-1)) * (level-1))
-          print("|" + "-"*(tabSize-1))
+          res.append(("|" + " "*(tabSize-1)) * (level-1))
+          res.append("|" + "-"*(tabSize-1))
         } else {
-          print(" " * tabSize * level)
+          res.append(" " * tabSize * level)
         }
       case ')' =>
         level -= 1
       case ',' =>
-        println()
+        res.append("\n")
         if (showLine) {
-          print(("|" + " "*(tabSize-1)) * (level-1))
-          print("|" + "-"*(tabSize-1))
+          res.append(("|" + " "*(tabSize-1)) * (level-1))
+          res.append("|" + "-"*(tabSize-1))
         } else {
-          print(" " * tabSize * level)
+          res.append(" " * tabSize * level)
         }
       case ' ' =>
-      case f => print(f)
+      case f => res.append(f)
     }
+    res.toString()
   }
-
 }
