@@ -52,16 +52,16 @@ case object NEW extends TokenKind         // new
 case object PRINTLN extends TokenKind     // println
 
 // identifiers
-class ID(val value: String) extends Token(IDKIND) { // TODO: Is there a prettier way to write this toString?
+class ID(val value: String) extends Token(IDKIND) {
   override def toString: String = super.toString.replace("KIND(", "(" + value + ")(")
 }
 
 // integer literals
 class INTLIT(val value: Int) extends Token(INTLITKIND) {
-  override def toString: String = super.toString.replace("KIND(", "(" + value + ")(")
+  override def toString: String = super.toString.replace("LITKIND(", "(" + value + ")(")
 }
 
 // string literals
 class STRLIT(val value: String) extends Token(STRLITKIND) {
-  override def toString: String = super.toString.replace("KIND(", "(" + value + ")(")
+  override def toString: String = super.toString.replace("LITKIND(", "(" + value + ")(")
 }
