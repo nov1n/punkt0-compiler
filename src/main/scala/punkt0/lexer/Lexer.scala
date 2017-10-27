@@ -69,6 +69,7 @@ object Lexer extends Phase[File, Iterator[Token]] {
 
         //  1 | 2 ...
         def parseIntLit(b: StringBuffer) : Token = {
+          if (b.length() > 1 && b.charAt(0) == '0') return parseBad("A sequence of digits cannot start with 0")
           peek match {
             case Some(x) if x.isDigit =>
               b.append(bufferedSource.next)
@@ -117,11 +118,14 @@ object Lexer extends Phase[File, Iterator[Token]] {
             case Some(x) if x == '"' =>
               bufferedSource.next
               new STRLIT(b.toString)
+            case Some(x) if x == '\n' =>
+              bufferedSource.next
+              parseBad("unexpected newline in 'string'")
             case Some(_) =>
               b.append(bufferedSource.next)
               parseStr(b)
             case None =>
-              parseBad("unexpected EOF ing 'string'")
+              parseBad("unexpected EOF in 'string'")
           }
         }
 

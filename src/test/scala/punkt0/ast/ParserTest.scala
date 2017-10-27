@@ -36,10 +36,9 @@ class ParserTest extends FlatSpec with Matchers {
     files.foreach(f => {
       val ctx = Context()
       val lex = Lexer.run(f)(ctx)
-      Reporter.terminateIfErrors()
 
       // Run parser
-      //Parser.run(lex)(ctx).toString.trim
+      //println(Parser.run(lex)(ctx).toString.trim)
     })
   }
 
