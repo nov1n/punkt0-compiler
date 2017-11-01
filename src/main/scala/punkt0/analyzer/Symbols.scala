@@ -3,6 +3,7 @@ package analyzer
 
 object Symbols {
 
+  // This is a trait that is mixed in with symbolic AST nodes
   trait Symbolic[S <: Symbol] {
     private var _sym: Option[S] = None
 
@@ -17,11 +18,13 @@ object Symbols {
     }
   }
 
+  // This class represents a symbol with a name and an id
   sealed abstract class Symbol extends Positioned {
     val id: Int = ID.next
     val name: String
   }
 
+  // This object is an ID generator
   private object ID {
     private var c: Int = 0
 
@@ -32,6 +35,7 @@ object Symbols {
     }
   }
 
+  // This class represents the global scope containing all the classes
   class GlobalScope {
     var mainClass: ClassSymbol = _
     var classes = Map[String, ClassSymbol]()
@@ -39,6 +43,7 @@ object Symbols {
     def lookupClass(n: String): Option[ClassSymbol] = ???
   }
 
+  // This class represents the class scope with a parent, methods, and members
   class ClassSymbol(val name: String) extends Symbol {
     var parent: Option[ClassSymbol] = None
     var methods = Map[String, MethodSymbol]()
@@ -48,6 +53,7 @@ object Symbols {
     def lookupVar(n: String): Option[VariableSymbol] = ???
   }
 
+  // This class represents a method scope with params and members
   class MethodSymbol(val name: String, val classSymbol: ClassSymbol) extends Symbol {
     var params = Map[String, VariableSymbol]()
     var members = Map[String, VariableSymbol]()
@@ -57,6 +63,7 @@ object Symbols {
     def lookupVar(n: String): Option[VariableSymbol] = ???
   }
 
+  // This class represents a variable scope (1)
   class VariableSymbol(val name: String) extends Symbol
 
 }

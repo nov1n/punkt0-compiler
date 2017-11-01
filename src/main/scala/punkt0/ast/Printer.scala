@@ -49,7 +49,7 @@ object Printer {
     apply(new StringBuilder, 0, t).toString()
   }
 
-  def apply(sIn : StringBuilder, l : Int, t : Tree): StringBuilder = {
+  private def apply(sIn : StringBuilder, l : Int, t : Tree): StringBuilder = {
     var s = sIn
     t match {
       case Program(main, classes) =>

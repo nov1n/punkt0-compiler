@@ -2,7 +2,9 @@ package punkt0
 
 import java.io.File
 
+import jdk.internal.org.objectweb.asm.tree.analysis.Analyzer
 import lexer._
+import punkt0.analyzer.NameAnalysis
 import punkt0.ast.Trees._
 import punkt0.ast.{Parser, Printer, PrinterTree}
 
@@ -37,6 +39,10 @@ object Main {
         ctx = ctx.copy(doPrintMain = true)
         processOption(args)
 
+      case "--symid" :: args =>
+        ctx = ctx.copy(doSymbolIds = true)
+        processOption(args)
+
       case f :: args =>
         ctx = ctx.copy(file = Some(new File(f)))
         processOption(args)
@@ -63,6 +69,7 @@ object Main {
     println(" --tokens      print tokens as parsed by the lexer")
     println(" --ast         print the ast")
     println(" --astree      print the ast as a tree")
+    println(" --symid       print the ast with symbol ids")
     println(" --pretty      pretty print the ast")
   }
 
@@ -90,15 +97,27 @@ object Main {
     // Start parsing using lexer iterator
     val parsed = Parser.run(lex)(ctx)
 
+    // Print and exit if needed
     if(ctx.doASTree) {
-      val tree = PrinterTree.apply(parsed)
+      val tree = PrinterTree.apply(parsed, names=false)
       print(tree)
+      sys.exit(0)
     } else if(ctx.doPrintMain) {
       val pretty = Printer.apply(parsed)
       print(pretty)
+      sys.exit(0)
     } else if(ctx.doAST) {
-      println(parsed.toString)
+      val ast = parsed.toString
+      println(ast)
+      sys.exit(0)
     }
+
+    val named = NameAnalysis.run(parsed)(ctx)
+
+    if(ctx.doSymbolIds) {
+      val namedAST = PrinterTree.apply(named, names=true)
+    }
+
   }
 }
 
