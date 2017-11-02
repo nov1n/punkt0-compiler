@@ -22,6 +22,7 @@ object Symbols {
   sealed abstract class Symbol extends Positioned {
     val id: Int = ID.next
     val name: String
+    override val toString : String = name + id
   }
 
   // This object is an ID generator

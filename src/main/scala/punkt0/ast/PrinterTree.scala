@@ -21,12 +21,11 @@ object PrinterTree {
     this
   }
 
-  def apply(input : Tree, names : Boolean) : String = {
-    apply(input.toString, names)
+  def apply(input : Tree) : String = {
+    apply(input.toString)
   }
 
-  def apply(input: String, names: Boolean): String = {
-    if(names) print("Hurr"); sys.exit(1)
+  def apply(input: String): String = {
     var res = new StringBuilder
     var level = 0
     input.foreach {

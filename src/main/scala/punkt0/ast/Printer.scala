@@ -2,6 +2,7 @@ package punkt0
 package ast
 
 import Trees._
+import punkt0.analyzer.Symbols.Symbolic
 import punkt0.lexer._
 
 object Printer {

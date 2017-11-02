@@ -2,10 +2,8 @@ package punkt0
 
 import java.io.File
 
-import jdk.internal.org.objectweb.asm.tree.analysis.Analyzer
 import lexer._
 import punkt0.analyzer.NameAnalysis
-import punkt0.ast.Trees._
 import punkt0.ast.{Parser, Printer, PrinterTree}
 
 
@@ -99,7 +97,7 @@ object Main {
 
     // Print and exit if needed
     if(ctx.doASTree) {
-      val tree = PrinterTree.apply(parsed, names=false)
+      val tree = PrinterTree.apply(parsed)
       print(tree)
       sys.exit(0)
     } else if(ctx.doPrintMain) {
@@ -115,7 +113,7 @@ object Main {
     val named = NameAnalysis.run(parsed)(ctx)
 
     if(ctx.doSymbolIds) {
-      val namedAST = PrinterTree.apply(named, names=true)
+      val namedAST = Printer.apply(named)
     }
 
   }
