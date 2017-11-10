@@ -54,7 +54,7 @@ class ParserTest extends FlatSpec with Matchers {
 
       // Pretty print parsed
       val parsed = Parser.run(lex)(ctx)
-      val printParse = Printer.apply(parsed)
+      val printParse = Printer.apply(parsed, printSymbols = false)
 
       // Run parser on pretty printed output
       val tmp = File.createTempFile(f.getName, ".pp")
@@ -63,7 +63,7 @@ class ParserTest extends FlatSpec with Matchers {
       fw.close()
       val ctx2 = Context()
       val lex2 = Lexer.run(tmp)(ctx2)
-      val printParsePrintParse = Printer.apply(Parser.run(lex2)(ctx))
+      val printParsePrintParse = Printer.apply(Parser.run(lex2)(ctx), printSymbols = false)
 
       if (printParse != printParsePrintParse) {
         println("x - " + tmp.getName)

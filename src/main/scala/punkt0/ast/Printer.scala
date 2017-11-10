@@ -2,10 +2,12 @@ package punkt0
 package ast
 
 import Trees._
-import punkt0.analyzer.Symbols.Symbolic
-import punkt0.lexer._
+import analyzer.Symbols._
+import lexer._
 
 object Printer {
+  private var _printSymbols = false
+
   val keywords = Map[TokenKind, String](
     COLON -> ":",
     SEMICOLON -> ";",
@@ -46,7 +48,8 @@ object Printer {
     PRINTLN -> "println"
   )
 
-  def apply(t: Tree): String = {
+  def apply(t: Tree, printSymbols: Boolean): String = {
+    _printSymbols = printSymbols
     apply(new StringBuilder, 0, t).toString()
   }
 
@@ -58,8 +61,8 @@ object Printer {
           s = apply(s, l, c)
         })
         s = apply(s, l, main)
-      case MainDecl(obj, parent, vars, exprs) =>
-        s.append(s"${keywords(OBJECT)} ${obj.value} ${keywords(EXTENDS)} ${parent.value} ${keywords(LBRACE)}\n")
+      case m @ MainDecl(obj, parent, vars, exprs) =>
+        s.append(s"${keywords(OBJECT)} ${valOrSymbol(m)} ${keywords(EXTENDS)} ${parent.value} ${keywords(LBRACE)}\n")
 
         vars.foreach(v => {
           s.append("\t" * (l+1))
@@ -77,8 +80,8 @@ object Printer {
 
         s.append(s"${keywords(RBRACE)}")
         s.append("\n")
-      case VarDecl(tpe, id, expr) =>
-        s.append(s"${keywords(VAR)} ${id.value} ${keywords(COLON)} ${typeTreeToString(tpe)} ${keywords(EQSIGN)} ")
+      case v @ VarDecl(tpe, id, expr) =>
+        s.append(s"${keywords(VAR)} ${valOrSymbol(v)} ${keywords(COLON)} ${valOrSymbol(tpe)} ${keywords(EQSIGN)} ")
         s = apply(s, l, expr)
       case IntLit(value) =>
         s.append(value)
@@ -90,12 +93,12 @@ object Printer {
         s.append(s"${keywords(PRINTLN)}${keywords(LPAREN)}")
         s = apply(s, l, expr)
         s.append(s"${keywords(RPAREN)}")
-      case ClassDecl(id, parent, vars, methods) =>
+      case c @ ClassDecl(id, parent, vars, methods) =>
         val ext = parent match {
-          case Some(p) => s"${keywords(EXTENDS)} ${p.value} "
+          case Some(p) => s"${keywords(EXTENDS)} ${valOrSymbol(p)} "
           case None => ""
         }
-        s.append(s"${keywords(CLASS)} ${id.value} $ext${keywords(LBRACE)}\n")
+        s.append(s"${keywords(CLASS)} ${valOrSymbol(c)} $ext${keywords(LBRACE)}\n")
 
         vars.zipWithIndex.foreach({case(v, i) =>
           s.append("\t" * (l+1))
@@ -112,16 +115,16 @@ object Printer {
         })
 
         s.append("\n}\n\n")
-      case MethodDecl(overrides, retType, id, args, vars, exprs, retExpr) =>
+      case m @ MethodDecl(overrides, retType, id, args, vars, exprs, retExpr) =>
         val ovrr = if(overrides) s"${keywords(OVERRIDE)} " else ""
-        s.append(s"$ovrr${keywords(DEF)} ${id.value}${keywords(LPAREN)}")
+        s.append(s"$ovrr${keywords(DEF)} ${valOrSymbol(m)}${keywords(LPAREN)}")
 
         args.zipWithIndex.foreach({case (a, i) =>
-          s.append(s"${a.id.value} ${keywords(COLON)} ${typeTreeToString(a.tpe)}")
+          s.append(s"${valOrSymbol(a)} ${keywords(COLON)} ${valOrSymbol(a.tpe)}")
           if (i != args.size - 1) s.append(s"${keywords(COMMA)} ")
         })
 
-        s.append(s"${keywords(RPAREN)} ${keywords(COLON)} ${typeTreeToString(retType)} ${keywords(EQSIGN)} ${keywords(LBRACE)}\n")
+        s.append(s"${keywords(RPAREN)} ${keywords(COLON)} ${valOrSymbol(retType)} ${keywords(EQSIGN)} ${keywords(LBRACE)}\n")
 
         vars.zipWithIndex.foreach({case (v, i) =>
           s.append("\t" * (l+2))
@@ -144,8 +147,8 @@ object Printer {
 
         s.append("\t" * (l+1))
         s.append("}")
-      case Identifier(value: String) =>
-        s.append(value)
+      case id @ Identifier(_) =>
+        s.append(valOrSymbol(id))
       case Plus(lhs, rhs) =>
         s = apply(s, l, lhs)
         s.append(s" ${keywords(PLUS)} ")
@@ -187,11 +190,11 @@ object Printer {
       case Null() =>
         s.append(s"${keywords(NULL)}")
       case New(id) =>
-        s.append(id.value)
+        s.append(valOrSymbol(id))
       case Not(expr) =>
         s = apply(s, l, expr)
       case Assign(id, expr) =>
-        s.append(s"${id.value} ${keywords(EQSIGN)} ")
+        s.append(s"${valOrSymbol(id)} ${keywords(EQSIGN)} ")
         s = apply(s, l, expr)
       case Block(exprs) =>
         s.append(s"${keywords(LBRACE)}\n")
@@ -221,7 +224,7 @@ object Printer {
         s = apply(s, l, body)
       case MethodCall(obj, meth, args) =>
         s = apply(s, l, obj)
-        s.append(s"${keywords(DOT)}${meth.value}${keywords(LPAREN)}")
+        s.append(s"${keywords(DOT)}${valOrSymbol(meth)}${keywords(LPAREN)}")
         args.zipWithIndex.foreach({case (a, i) =>
           s = apply(s, l, a)
           if (i != args.size - 1) s.append(s"${keywords(COMMA)} ")
@@ -232,13 +235,13 @@ object Printer {
     s
   }
 
-  def typeTreeToString(t: TypeTree) : String = t match {
+  def valOrSymbol(node: Tree) : String = node match {
+    case x: Symbolic[Symbol] if _printSymbols => x.getSymbol.toString
     case UnitType() => keywords(UNIT)
     case StringType() => keywords(STRING)
     case IntType() => keywords(INT)
     case BooleanType() => keywords(BOOLEAN)
-    case Identifier(value) => value
-    case x => Reporter.error("Unexpected TypeTree node: " + x); ""
+    case Identifier(id) => id
+    case x => sys.error("Unexpected symbol: " + x)
   }
-
 }

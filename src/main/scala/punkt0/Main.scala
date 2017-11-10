@@ -3,8 +3,8 @@ package punkt0
 import java.io.File
 
 import lexer._
-import punkt0.analyzer.NameAnalysis
-import punkt0.ast.{Parser, Printer, PrinterTree}
+import analyzer.NameAnalysis
+import ast.{Parser, Printer, PrinterTree}
 
 
 object Main {
@@ -101,7 +101,7 @@ object Main {
       print(tree)
       sys.exit(0)
     } else if(ctx.doPrintMain) {
-      val pretty = Printer.apply(parsed)
+      val pretty = Printer.apply(parsed, printSymbols = false)
       print(pretty)
       sys.exit(0)
     } else if(ctx.doAST) {
@@ -113,9 +113,9 @@ object Main {
     val named = NameAnalysis.run(parsed)(ctx)
 
     if(ctx.doSymbolIds) {
-      val namedAST = Printer.apply(named)
+      val namedAST = Printer.apply(named, printSymbols = true)
+      print(namedAST)
     }
-
   }
 }
 

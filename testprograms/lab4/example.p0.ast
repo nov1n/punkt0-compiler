@@ -1,0 +1,19 @@
+class B#2 extends A#3 {
+  override def foo#7(): Int = {
+    value#4 = 42;
+    value#4
+  }
+}
+
+class A#3 {
+  var value#4: Int = 0;
+  def foo#5(): Int = {
+    var value#6: Boolean = true;
+    value#6 = false;
+    41
+  }
+}
+
+object Main#1 extends App {
+  println((new B#2().foo#??()))
+}

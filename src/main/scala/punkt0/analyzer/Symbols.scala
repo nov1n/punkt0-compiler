@@ -22,7 +22,8 @@ object Symbols {
   sealed abstract class Symbol extends Positioned {
     val id: Int = ID.next
     val name: String
-    override val toString : String = name + id
+    def lookupVar(n : String): Option[VariableSymbol]
+    override val toString : String = s"$name#$id"
   }
 
   // This object is an ID generator
@@ -41,7 +42,7 @@ object Symbols {
     var mainClass: ClassSymbol = _
     var classes = Map[String, ClassSymbol]()
 
-    def lookupClass(n: String): Option[ClassSymbol] = ???
+    def lookupClass(n: String): Option[ClassSymbol] = classes.get(n)
   }
 
   // This class represents the class scope with a parent, methods, and members
@@ -50,8 +51,25 @@ object Symbols {
     var methods = Map[String, MethodSymbol]()
     var members = Map[String, VariableSymbol]()
 
-    def lookupMethod(n: String): Option[MethodSymbol] = ???
-    def lookupVar(n: String): Option[VariableSymbol] = ???
+    def lookupMethod(n: String): Option[MethodSymbol] = {
+      var hierarchy = List[Option[MethodSymbol]]()
+      // Parent
+      if(parent.isDefined) hierarchy = hierarchy :+ parent.get.lookupMethod(n)
+      // Local
+      hierarchy = hierarchy :+ methods.get(n)
+      // Return closest binding
+      hierarchy.reduce((res, cur) => if(cur.isDefined) cur else res)
+    }
+
+    def lookupVar(n: String): Option[VariableSymbol] = {
+      var hierarchy = List[Option[VariableSymbol]]()
+      // Parent
+      if(parent.isDefined) hierarchy = hierarchy :+ parent.get.lookupVar(n)
+      // Local
+      hierarchy = hierarchy :+ members.get(n)
+      // Return closest binding
+      hierarchy.reduce((res, cur) => if(cur.isDefined) cur else res)
+    }
   }
 
   // This class represents a method scope with params and members
@@ -61,10 +79,29 @@ object Symbols {
     var argList: List[VariableSymbol] = Nil
     var overridden: Option[MethodSymbol] = None
 
-    def lookupVar(n: String): Option[VariableSymbol] = ???
+    def lookupVar(n: String): Option[VariableSymbol] = {
+      var hierarchy = List[Option[VariableSymbol]]()
+      // Class
+      hierarchy = hierarchy :+ classSymbol.lookupVar(n)
+      // Arguments
+      hierarchy = hierarchy :+ argList.find(a => a.name.equals(n))
+      // Local
+      hierarchy = hierarchy :+ members.get(n)
+      // Return closest binding
+      hierarchy.reduce((res, cur) => if(cur.isDefined) cur else res)
+    }
   }
 
   // This class represents a variable scope (1)
-  class VariableSymbol(val name: String) extends Symbol
+  class VariableSymbol(val name: String) extends Symbol {
+    // TODO: Verify if this is needed. We add lookupVar to the Symbol interface
+    // TODO: such that we can call lookupVar on any symbol in the symbolizeIdentifiers method.
+    def lookupVar(n: String): Option[VariableSymbol] = {
+      n match {
+        case _ if n == name => Some(this)
+        case _ => None
+      }
+    }
+  }
 
 }
