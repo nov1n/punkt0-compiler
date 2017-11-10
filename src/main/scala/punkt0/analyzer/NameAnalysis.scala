@@ -142,14 +142,14 @@ object NameAnalysis extends Phase[Program, Program] {
         meth.setSymbol(new VariableSymbol(meth.value)) // We don't know the dispatch at this point
         args.foreach(a => symbolizeIdentifiers(a, scope))
       case Assign(id, expr) =>
-        symbolizeIdentifier(id, scope, canBeGlobal = false)
+        symbolizeIdentifier(id, scope)
         symbolizeIdentifiers(expr, scope)
-      case id @ Identifier(_) => symbolizeIdentifier(id, scope, canBeGlobal = true)
-      case New(tpe) => symbolizeIdentifier(tpe, scope, canBeGlobal = true)
+      case id @ Identifier(_) => symbolizeIdentifier(id, scope)
+      case New(tpe) => symbolizeIdentifier(tpe, scope)
       case Not(expr) => symbolizeIdentifiers(expr, scope)
       case Formal(tpe, id) =>
         symbolizeIdentifiers(tpe, scope)
-        symbolizeIdentifier(id, scope, canBeGlobal = false)
+        symbolizeIdentifier(id, scope)
       case Block(exprs) => exprs.foreach(e => symbolizeIdentifiers(e, scope))
       case Println(expr) => symbolizeIdentifiers(expr, scope)
       case If(expr, thn, els) =>
@@ -159,14 +159,13 @@ object NameAnalysis extends Phase[Program, Program] {
     }
   }
 
-  def symbolizeIdentifier(id : Identifier, scope: Symbolic[_], canBeGlobal : Boolean) : Unit = { // TODO: Check all 'canBeGlobal' occurrences according to grammar
+  def symbolizeIdentifier(id : Identifier, scope: Symbolic[_]) : Unit = {
     scope.getSymbol.asInstanceOf[Symbol].lookupVar(id.value) match {
       case Some(x) => id.setSymbol(x)
-      case None if canBeGlobal => globalScope.lookupClass(id.value) match {
+      case None => globalScope.lookupClass(id.value) match {
         case Some(x) => id.setSymbol(x)
-        case None =>Reporter.error(s"Identifier ${id.value} on ${id.posString} not defined")
+        case None => Reporter.error(s"Identifier ${id.value} on ${id.posString} not defined")
       }
-      case None => throw new RuntimeException("Variable " + id.value + " not found " + id.posString)
     }
   }
 
