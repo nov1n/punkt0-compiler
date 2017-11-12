@@ -5,26 +5,37 @@ import punkt0.analyzer.Symbols.{ClassSymbol, GlobalScope, Symbol, Symbolic, Vari
 import punkt0.ast.Trees._
 
 object Enforce {
+  def methodDoesYetNotExitInClass(m: MethodDecl, c: ClassDecl): Unit = {
+    val duplicateSym = c.getSymbol.methods.get(m.id.value)
+    if(duplicateSym.isDefined) {
+      Reporter.error(s"'${m.id.value}' is defined more than once. First definition at ${duplicateSym.get.posString}.", m)
+    }
+  }
+
   def irreflexiveTransitiveClosure(classes: List[ClassDecl]) : Unit = {
     classes.foreach(c => {
-      var search = List[String]()
-      var parentOpt = c.getSymbol.parent
-      def findCycle() : Unit = {
-        while(parentOpt.isDefined) {
-          parentOpt match {
-            case Some(x) if search.contains(x.name) =>
-              search = search :+ x.name
-              Reporter.error(s"inheritance cycle for class ${c.id.value}: ${search.mkString(" => ")}", c)
-              return
-            case Some(y) =>
-              search = search :+ y.name
-              parentOpt = y.parent
-            case None => Unit
-          }
-        }
+      val search = inheritanceHierarchy(c.getSymbol)
+      if(search.distinct.size != search.size) {
+        Reporter.error(s"inheritance cycle for class ${c.id.value}: ${search.map(_.name).mkString(" => ")}", c)
       }
-      findCycle()
     })
+  }
+
+  def inheritanceHierarchy(c : ClassSymbol) : List[ClassSymbol] = {
+    var search = List[ClassSymbol]()
+    var parentOpt = c.parent
+    while(parentOpt.isDefined) {
+      parentOpt match {
+        case Some(x) if search.contains(x) =>
+          search = search :+ x
+          return search
+        case Some(y) =>
+          search = search :+ y
+          parentOpt = y.parent
+        case None => Unit
+      }
+    }
+    search
   }
 
   def classUnique(className: String, classes: Map[String, Symbols.ClassSymbol]): Unit = {
@@ -39,14 +50,14 @@ object Enforce {
     case _ => Reporter.error(s"illigal variable delcaration, should be a constant or new'", v.id)
   }
 
-  def methodUniqueInScope(m: MethodDecl, scope : Symbolic[ClassSymbol]) : Unit = {
+  def methodUniqueInClassHierarchyOrOverrides(m: MethodDecl) : Unit = { // TODO: Test this
     // Enforce unique name in scope
-    val sym = scope.getSymbol.lookupMethod(m.id.value)
-    sym match {
-      case Some(x) => Reporter.error(s"'${m.id.value}' is defined more than once. First definition at ${x.posString}.", m)
-      case None => Unit // Method name is unique in scope
-    }
-
+    val parent = m.getSymbol.classSymbol.parent
+    if(parent.isDefined && !m.overrides) {
+      val parentMethodDecl = parent.get.lookupMethod(m.id.value)
+      if(parentMethodDecl.isDefined) {
+        Reporter.error(s"'${m.id.value}' overrides a method in superclass ${parentMethodDecl.get.classSymbol.name} without override modifier.", m) }
+      }
   }
 
   def varUniqueInScope(v: VarDecl, scope : Symbolic[_]) : Unit = {

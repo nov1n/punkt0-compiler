@@ -84,8 +84,18 @@ class Z extends Y{
 }
 
 class R {
-  def boo(): Unit = {5}
-  def boo(): Unit = {5}
+  def sameMethod(): Unit = {5}
+  def sameMethod(): Unit = {5}
+}
+
+class N {
+  def bee(): Unit = {3}
+}
+
+class Q extends N{
+  def vee(): Unit = {3}
+  def vee(): Unit = {1}
+  def bee(): Unit = {3}
 }
 
 class O {

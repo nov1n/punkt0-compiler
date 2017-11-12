@@ -81,9 +81,9 @@ object NameAnalysis extends Phase[Program, Program] {
       // Methods
       c.methods.foreach(m => {
         // Methods
-        Enforce.methodUniqueInScope(m, c)
         val methodName = m.id.value
         val methodSymbol = new MethodSymbol(methodName, classSymbol).setPos(m)
+        Enforce.methodDoesYetNotExitInClass(m, c)
         m.setSymbol(methodSymbol)
         c.getSymbol.methods += methodName -> methodSymbol
 
@@ -138,10 +138,11 @@ object NameAnalysis extends Phase[Program, Program] {
       case ClassDecl(id, parent, vars, methods) =>
         vars.foreach(symbolizeIdentifiers(_, scope))
         methods.foreach(m => symbolizeIdentifiers(m, m))
-      case MethodDecl(overrides, retType, id, args, vars, exprs, retExpr) =>
+      case m @ MethodDecl(overrides, retType, id, args, vars, exprs, retExpr) =>
         symbolizeIdentifiers(retType, scope)
         args.foreach(symbolizeIdentifiers(_, scope))
         Enforce.uniqueNames(args, scope)
+        Enforce.methodUniqueInClassHierarchyOrOverrides(m)
         vars.foreach(symbolizeIdentifiers(_, scope))
         exprs.foreach(symbolizeIdentifiers(_, scope))
         symbolizeIdentifiers(retExpr, scope)
