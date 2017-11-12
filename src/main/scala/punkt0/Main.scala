@@ -114,6 +114,7 @@ object Main {
 
     if(ctx.doSymbolIds) {
       val namedAST = Printer.apply(named, printSymbols = true)
+      Reporter.terminateIfErrors()
       print(namedAST)
     }
   }

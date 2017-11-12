@@ -3,21 +3,21 @@ package analyzer
 
 import ast.Trees._
 import Symbols._
-import punkt0.ast.Printer
 
 object NameAnalysis extends Phase[Program, Program] {
 
   val globalScope = new GlobalScope()
 
   def run(prog: Program)(ctx: Context): Program = {
-    import Reporter._
-
     // Step 1: Collect symbols in declarations
     collectSymbols(prog)
 //    printSummary()
 
     // Step 1.5: Create the class hierarchy
     addClassHierarchy(prog)
+
+    // Prevent inheritance cycles
+    Enforce.irreflexiveTransitiveClosure(prog.classes)
 
     // Step 2: Attach symbols to identifiers (except method calls) in method bodies
     symbolizeIdentifiers(prog)
@@ -32,12 +32,13 @@ object NameAnalysis extends Phase[Program, Program] {
       case Some(parentTree) =>
         val parentSymbolOption = globalScope.lookupClass(parentTree.value)
 
-        // Add symbol to parent identifier for printing
-        parentSymbolOption match {
-          case None => Reporter.error("Extending unexisting class: " + parentTree.value)
-          case Some(parentSymbol) => {
-            parentTree.setSymbol(parentSymbol)
-          }
+        // Add symbol to parent ~identifier~ for printing
+        // Enforce parent class exists
+        parentSymbolOption match { // TODO: Extract to Enforce object
+          case Some(parentSymbol) => parentTree.setSymbol(parentSymbol)
+          case None =>
+            parentTree.setSymbol(new SymbolNotExists())
+            Reporter.error("extending unexisting class: " + parentTree.value, c)
         }
 
         // Create a link between parent and children symbols for variable lookups
@@ -52,6 +53,7 @@ object NameAnalysis extends Phase[Program, Program] {
     prog.main.setSymbol(ms)
     globalScope.mainClass = ms
     prog.main.vars.foreach(v => {
+      Enforce.varUniqueInScope(v, prog.main)
       val variableSymbol = new VariableSymbol(v.id.value).setPos(v)
       v.setSymbol(variableSymbol)
       prog.main.getSymbol.members += variableSymbol.name -> variableSymbol
@@ -64,11 +66,13 @@ object NameAnalysis extends Phase[Program, Program] {
 
       // Classes
       c.setSymbol(classSymbol)
+      Enforce.classUnique(className, globalScope.classes)
       globalScope.classes += className -> classSymbol
 
       // Variables
       c.vars.foreach(v => {
         val variableName = v.id.value
+        Enforce.varUniqueInScope(v, c)
         val variableSymbol = new VariableSymbol(variableName).setPos(v)
         v.setSymbol(variableSymbol)
         c.getSymbol.members += variableName -> variableSymbol
@@ -77,6 +81,7 @@ object NameAnalysis extends Phase[Program, Program] {
       // Methods
       c.methods.foreach(m => {
         // Methods
+        Enforce.methodUniqueInScope(m, c)
         val methodName = m.id.value
         val methodSymbol = new MethodSymbol(methodName, classSymbol).setPos(m)
         m.setSymbol(methodSymbol)
@@ -93,6 +98,7 @@ object NameAnalysis extends Phase[Program, Program] {
         // Variables
         m.vars.foreach(v => {
           val variableName = v.id.value
+          Enforce.varUniqueInScope(v, m)
           val variableSymbol = new VariableSymbol(variableName).setPos(v)
           v.setSymbol(variableSymbol)
           m.getSymbol.members += variableName -> variableSymbol
@@ -121,9 +127,10 @@ object NameAnalysis extends Phase[Program, Program] {
       case Div(lhs, rhs) => binaryTraverse(lhs, rhs)
       case LessThan(lhs, rhs) => binaryTraverse(lhs, rhs)
       case Equals(lhs, rhs) => binaryTraverse(lhs, rhs)
-      case VarDecl(tpe, id, expr) =>
+      case v @ VarDecl(tpe, id, expr) =>
         symbolizeIdentifiers(tpe, scope)
         symbolizeIdentifiers(expr, scope)
+        Enforce.assignConstantOrNew(v)
       case While(cond, body) => binaryTraverse(cond, body)
       case MainDecl(obj, parent, vars, exprs) =>
         vars.foreach(symbolizeIdentifiers(_, scope))
@@ -134,6 +141,7 @@ object NameAnalysis extends Phase[Program, Program] {
       case MethodDecl(overrides, retType, id, args, vars, exprs, retExpr) =>
         symbolizeIdentifiers(retType, scope)
         args.foreach(symbolizeIdentifiers(_, scope))
+        Enforce.uniqueNames(args, scope)
         vars.foreach(symbolizeIdentifiers(_, scope))
         exprs.foreach(symbolizeIdentifiers(_, scope))
         symbolizeIdentifiers(retExpr, scope)
@@ -160,11 +168,13 @@ object NameAnalysis extends Phase[Program, Program] {
   }
 
   def symbolizeIdentifier(id : Identifier, scope: Symbolic[_]) : Unit = {
-    scope.getSymbol.asInstanceOf[Symbol].lookupVar(id.value) match {
+    scope.getSymbol.asInstanceOf[Symbol].lookupVar(id.value) match { // TODO: is this safe?
       case Some(x) => id.setSymbol(x)
       case None => globalScope.lookupClass(id.value) match {
         case Some(x) => id.setSymbol(x)
-        case None => Reporter.error(s"Identifier ${id.value} on ${id.posString} not defined")
+        case None =>
+          Reporter.error(s"'${id.value}' not defined", id)
+          id.setSymbol(new SymbolNotExists())
       }
     }
   }

@@ -104,4 +104,10 @@ object Symbols {
     }
   }
 
+  // This is assigned when the symbol does not exist, so that we can still print it
+  class SymbolNotExists extends Symbol {
+    override val name: String = "DOES_NOT_EXIST"
+    override def lookupVar(n: String): Option[VariableSymbol] = None
+  }
+
 }

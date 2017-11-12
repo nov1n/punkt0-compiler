@@ -1,0 +1,99 @@
+class A {
+  var sameClass: Int = 0;
+  var sameClass : Int = false;
+}
+
+class B {
+  def foo(): Int = {
+   var sameMethod : Int = 4;
+   var sameMethod : Int = false;
+   5
+  }
+}
+
+class C {
+  def foo(sameArg:Int, sameArg:Int): Int = {
+    5
+  }
+}
+
+class D {
+  var a : Int = new D();
+  var b : Int = 5;
+  var c : Int = "hello";
+  var d : Int = true;
+  var e : Int = false;
+  var f : Int = 5 + 3;
+  var g : Int = {};
+}
+
+class E {
+  def bar () : Unit = {
+ //   a = 5;
+ //   a
+    5
+  }
+}
+
+class F {
+  var classMemberShadow : Int = new Durr();
+
+  def fur() : Boolean = {
+    var classMemberShadow : Boolean = true;
+    classMemberShadow
+  }
+}
+
+class G {
+  var parameterShadowClassMember : Int = new Hurr();
+
+  def baz(parameterShadowClassMember : Boolean) : Int = {
+    parameterShadowClassMember
+  }
+}
+
+class H {
+  def baz(methodMemberParameterShadow : Boolean) : Int = {
+    var methodMemberParameterShadow : Int = 0;
+    methodMemberParameterShadow
+  }
+}
+
+class H {
+
+}
+
+class J extends I{
+
+}
+
+class W extends Z{
+
+}
+
+class X extends W{
+
+}
+
+class Y extends X{
+
+}
+
+class Z extends Y{
+
+}
+
+class R {
+  def boo(): Unit = {5}
+  def boo(): Unit = {5}
+}
+
+class O {
+    var unexistingType : DoesNotExist = 5;
+}
+
+object Main extends App {
+  var sameMain : Int = false;
+  var sameMain : Int = false;
+  println(new B().foo())
+}

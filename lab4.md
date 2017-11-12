@@ -192,10 +192,10 @@ catch):
 
 #### Variable declarations
 
-  -[ ] No two variables can have the same name in the same scope, unless
+  -[x] No two variables can have the same name in the same scope, unless
     one of the two cases of shadowing occurs.
-  -[ ] All used variables must be declared.
-  -[ ] The initializer expression in a variable or field declaration must
+  -[x] All used variables must be declared.
+  -[x] The initializer expression in a variable or field declaration must
     be either a constant (including `null`) or a `new` expression
     (instance creation). *Note:* you can implement this constraint by
     modifying your parser to incorporate this restriction. (An
@@ -206,24 +206,24 @@ catch):
 
 Shadowing can occur in two different situations:
 
-  -[ ] a local variable in a method can shadow a class member
-  -[ ] a method parameter can shadow a class member
+  -[x] a local variable in a method can shadow a class member
+  -[x] a method parameter can shadow a class member
 
 All other types of shadowing are not allowed in Punkt0.
 
 #### Classes
 
-  -[ ] Classes must be defined only once.
-  -[ ] When a class is declared as extending another one, the other class
+  -[x] Classes must be defined only once.
+  -[x] When a class is declared as extending another one, the other class
     must be declared.
-  -[ ] The transitive closure of the `extends` relation must be irreflexive
+  -[x] The transitive closure of the `extends` relation must be irreflexive
     (no cycles in the inheritance graph).
-  -[ ] When a class name is used as a type, the class must be declared.
+  -[x] When a class name is used as a type, the class must be declared.
 
 #### Overloading
 
   * Overloading is not permitted:
-    -[ ] In a given class, no two methods can have the same name.
+    -[x] In a given class, no two methods can have the same name.
     -[ ] In a given class, no method can have the same name as another
       method defined in a super class, unless overriding applies.
 
