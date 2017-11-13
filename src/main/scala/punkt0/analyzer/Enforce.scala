@@ -1,10 +1,28 @@
 package punkt0.analyzer
 
 import punkt0.Reporter
-import punkt0.analyzer.Symbols.{ClassSymbol, GlobalScope, Symbol, Symbolic, VariableSymbol}
+import punkt0.analyzer.Symbols.{ClassSymbol, MethodSymbol, Symbol, Symbolic, VariableSymbol}
 import punkt0.ast.Trees._
 
 object Enforce {
+
+  def varUniqueInClassHierarchy(v: VarDecl, scope: Symbolic[_]): Unit = {
+    val scopeSymbol = scope.getSymbol
+    val parent = scopeSymbol match {
+      case s: ClassSymbol => s.parent
+      case s: MethodSymbol => s.classSymbol.parent
+      case _: VariableSymbol => sys.error(s"Variable symbol cannot be a scope ${v.posString}")
+    }
+
+    if(parent.isDefined) {
+      val parentVarDecl = parent.get.lookupVar(v.id.value)
+      if(parentVarDecl.isDefined) {
+        // This variable was already defined in a class higher up the hierarchy
+        Reporter.error(s"'${v.id.value}' is defined by a parent class of ${scope.getSymbol.asInstanceOf[Symbol].name}", v)
+      }
+    }
+  }
+
   def methodDoesYetNotExitInClass(m: MethodDecl, c: ClassDecl): Unit = {
     val duplicateSym = c.getSymbol.methods.get(m.id.value)
     if(duplicateSym.isDefined) {
@@ -52,12 +70,19 @@ object Enforce {
 
   def methodUniqueInClassHierarchyOrOverrides(m: MethodDecl) : Unit = { // TODO: Test this
     // Enforce unique name in scope
-    val parent = m.getSymbol.classSymbol.parent
-    if(parent.isDefined && !m.overrides) {
+    val parent = m.getSymbol.classSymbol.parent // Don't count in this class because it will always be defined
+    if(parent.isDefined) {
       val parentMethodDecl = parent.get.lookupMethod(m.id.value)
-      if(parentMethodDecl.isDefined) {
-        Reporter.error(s"'${m.id.value}' overrides a method in superclass ${parentMethodDecl.get.classSymbol.name} without override modifier.", m) }
+      if (parentMethodDecl.isDefined) {
+        if(m.overrides) {
+          if (m.getSymbol.argList.size != parentMethodDecl.get.argList.size) {
+            Reporter.error(s"'${m.id.value}' overrides a method in superclass ${parentMethodDecl.get.classSymbol.name} with different number of arguments.", m)
+          }
+        } else {
+          Reporter.error(s"'${m.id.value}' overrides a method in superclass ${parentMethodDecl.get.classSymbol.name} without override modifier.", m)
+        }
       }
+    }
   }
 
   def varUniqueInScope(v: VarDecl, scope : Symbolic[_]) : Unit = {

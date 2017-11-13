@@ -11,7 +11,7 @@ object NameAnalysis extends Phase[Program, Program] {
   def run(prog: Program)(ctx: Context): Program = {
     // Step 1: Collect symbols in declarations
     collectSymbols(prog)
-//    printSummary()
+    //debug()
 
     // Step 1.5: Create the class hierarchy
     addClassHierarchy(prog)
@@ -28,7 +28,7 @@ object NameAnalysis extends Phase[Program, Program] {
   }
 
   private def addClassHierarchy(prog: Program): Unit = {
-    prog.classes.foreach(c => c.parent match { // TODO: Understand this
+    prog.classes.foreach(c => c.parent match {
       case Some(parentTree) =>
         val parentSymbolOption = globalScope.lookupClass(parentTree.value)
 
@@ -68,7 +68,11 @@ object NameAnalysis extends Phase[Program, Program] {
       c.setSymbol(classSymbol)
       Enforce.classUnique(className, globalScope.classes)
       globalScope.classes += className -> classSymbol
+    })
 
+    // Variables
+    // Methods
+    prog.classes.foreach(c => {
       // Variables
       c.vars.foreach(v => {
         val variableName = v.id.value
@@ -82,7 +86,7 @@ object NameAnalysis extends Phase[Program, Program] {
       c.methods.foreach(m => {
         // Methods
         val methodName = m.id.value
-        val methodSymbol = new MethodSymbol(methodName, classSymbol).setPos(m)
+        val methodSymbol = new MethodSymbol(methodName, c.getSymbol).setPos(m)
         Enforce.methodDoesYetNotExitInClass(m, c)
         m.setSymbol(methodSymbol)
         c.getSymbol.methods += methodName -> methodSymbol
@@ -131,6 +135,7 @@ object NameAnalysis extends Phase[Program, Program] {
         symbolizeIdentifiers(tpe, scope)
         symbolizeIdentifiers(expr, scope)
         Enforce.assignConstantOrNew(v)
+        Enforce.varUniqueInClassHierarchy(v, scope)
       case While(cond, body) => binaryTraverse(cond, body)
       case MainDecl(obj, parent, vars, exprs) =>
         vars.foreach(symbolizeIdentifiers(_, scope))
@@ -148,7 +153,6 @@ object NameAnalysis extends Phase[Program, Program] {
         symbolizeIdentifiers(retExpr, scope)
       case MethodCall(obj, meth, args) =>
         symbolizeIdentifiers(obj, scope)
-        meth.setSymbol(new VariableSymbol(meth.value)) // We don't know the dispatch at this point
         args.foreach(a => symbolizeIdentifiers(a, scope))
       case Assign(id, expr) =>
         symbolizeIdentifier(id, scope)
@@ -180,7 +184,7 @@ object NameAnalysis extends Phase[Program, Program] {
     }
   }
 
-  def printSummary(): Any = {
+  def debug(): Any = {
     println("---------- SUMMARY ------------")
     println("MAIN CLASS:")
     println(globalScope.mainClass)

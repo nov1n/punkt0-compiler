@@ -7,7 +7,7 @@ class B#2 extends A#3 {
 
 class A#3 {
   var value#4: Int = 0;
-  def foo#5(value): Int = {
+  def foo#5(): Int = {
     var value#6: Boolean = true;
     value#6 = false;
     41

@@ -222,9 +222,9 @@ object Printer {
         s = apply(s, l, cond)
         s.append(s"${keywords(RPAREN)} ")
         s = apply(s, l, body)
-      case MethodCall(obj, meth, args) =>
+      case m @ MethodCall(obj, meth, args) =>
         s = apply(s, l, obj)
-        s.append(s"${keywords(DOT)}${valOrSymbol(meth)}${keywords(LPAREN)}")
+        s.append(s"${keywords(DOT)}${valOrSymbol(m)}${keywords(LPAREN)}")
         args.zipWithIndex.foreach({case (a, i) =>
           s = apply(s, l, a)
           if (i != args.size - 1) s.append(s"${keywords(COMMA)} ")
@@ -237,6 +237,7 @@ object Printer {
 
   def valOrSymbol(node: Tree) : String = node match {
     case x: Symbolic[Symbol] if _printSymbols => x.getSymbol.toString
+    case c: MethodCall => s"${c.meth.value}#??"
     case UnitType() => keywords(UNIT)
     case StringType() => keywords(STRING)
     case IntType() => keywords(INT)

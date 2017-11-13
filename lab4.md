@@ -224,16 +224,16 @@ All other types of shadowing are not allowed in Punkt0.
 
   * Overloading is not permitted:
     -[x] In a given class, no two methods can have the same name.
-    -[ ] In a given class, no method can have the same name as another
+    -[x] In a given class, no method can have the same name as another
       method defined in a super class, unless overriding applies.
 
 #### Overriding
 
-  -[ ] A method in a given class overrides another one in a super class
+  -[x] A method in a given class overrides another one in a super class
     if they have the same name and the same number of arguments. (Of
     course this constraint will be tightened once we start checking
     types.) An overriding method must have an `override` modifier.
-  -[ ] Fields cannot be overridden.
+  -[x] Fields cannot be overridden.
 
 
 ## Stubs

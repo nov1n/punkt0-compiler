@@ -1,0 +1,16 @@
+class A {
+  def foo() : Unit = {5}
+}
+
+class B extends A {
+  var a : Int = 5;
+}
+
+class C extends B {
+  var b : Int = 6;
+  override def foo() : Unit = {5}
+}
+
+object Main extends App {
+    println("hello world")
+}

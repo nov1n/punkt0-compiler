@@ -28,7 +28,7 @@ object Symbols {
 
   // This object is an ID generator
   private object ID {
-    private var c: Int = 0
+    private var c: Int = 1 // TODO: Changed this to 1 to match example output
 
     def next: Int = {
       val ret = c
