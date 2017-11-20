@@ -6,6 +6,7 @@ import analyzer.Symbols._
 object Trees {
   sealed trait Tree extends Positioned
 
+  // TODO: Point all ids in vardecl e.g. to the vardecl itself
   case class Program(main: MainDecl, classes: List[ClassDecl]) extends Tree
   case class MainDecl(obj: Identifier, parent: Identifier, vars: List[VarDecl], exprs: List[ExprTree]) extends Tree with Symbolic[ClassSymbol]
   case class ClassDecl(id: Identifier, parent: Option[Identifier], vars: List[VarDecl], methods: List[MethodDecl]) extends Tree with Symbolic[ClassSymbol]

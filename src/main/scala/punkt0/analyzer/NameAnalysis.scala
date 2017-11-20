@@ -116,7 +116,7 @@ object NameAnalysis extends Phase[Program, Program] {
     p.classes.foreach(c => symbolizeIdentifiers(c, c))
   }
 
-  def symbolizeIdentifiers(tree: Tree, scope : Symbolic[_]) : Unit = {
+  def symbolizeIdentifiers(tree: Tree, scope : Symbolic[_ <: Symbol]) : Unit = {
     def binaryTraverse(lhs: Tree, rhs: ExprTree): Unit = {
       symbolizeIdentifiers(lhs, scope)
       symbolizeIdentifiers(rhs, scope)
@@ -172,8 +172,8 @@ object NameAnalysis extends Phase[Program, Program] {
     }
   }
 
-  def symbolizeIdentifier(id : Identifier, scope: Symbolic[_]) : Unit = {
-    scope.getSymbol.asInstanceOf[Symbol].lookupVar(id.value) match { // TODO: is this safe?
+  def symbolizeIdentifier(id : Identifier, scope: Symbolic[_ <: Symbol]) : Unit = {
+    scope.getSymbol.lookupVar(id.value) match {
       case Some(x) => id.setSymbol(x)
       case None => globalScope.lookupClass(id.value) match {
         case Some(x) => id.setSymbol(x)
