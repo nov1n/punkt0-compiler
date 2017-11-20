@@ -61,8 +61,8 @@ object Printer {
           s = apply(s, l, c)
         })
         s = apply(s, l, main)
-      case m @ MainDecl(obj, parent, vars, exprs) =>
-        s.append(s"${keywords(OBJECT)} ${valOrSymbol(m)} ${keywords(EXTENDS)} ${parent.value} ${keywords(LBRACE)}\n")
+      case MainDecl(obj, parent, vars, exprs) =>
+        s.append(s"${keywords(OBJECT)} ${valOrSymbol(obj)} ${keywords(EXTENDS)} ${parent.value} ${keywords(LBRACE)}\n")
 
         vars.foreach(v => {
           s.append("\t" * (l+1))
@@ -80,8 +80,8 @@ object Printer {
 
         s.append(s"${keywords(RBRACE)}")
         s.append("\n")
-      case v @ VarDecl(tpe, id, expr) =>
-        s.append(s"${keywords(VAR)} ${valOrSymbol(v)} ${keywords(COLON)} ${valOrSymbol(tpe)} ${keywords(EQSIGN)} ")
+      case VarDecl(tpe, id, expr) =>
+        s.append(s"${keywords(VAR)} ${valOrSymbol(id)} ${keywords(COLON)} ${valOrSymbol(tpe)} ${keywords(EQSIGN)} ")
         s = apply(s, l, expr)
       case IntLit(value) =>
         s.append(value)
@@ -93,12 +93,12 @@ object Printer {
         s.append(s"${keywords(PRINTLN)}${keywords(LPAREN)}")
         s = apply(s, l, expr)
         s.append(s"${keywords(RPAREN)}")
-      case c @ ClassDecl(id, parent, vars, methods) =>
+      case ClassDecl(id, parent, vars, methods) =>
         val ext = parent match {
           case Some(p) => s"${keywords(EXTENDS)} ${valOrSymbol(p)} "
           case None => ""
         }
-        s.append(s"${keywords(CLASS)} ${valOrSymbol(c)} $ext${keywords(LBRACE)}\n")
+        s.append(s"${keywords(CLASS)} ${valOrSymbol(id)} $ext${keywords(LBRACE)}\n")
 
         vars.zipWithIndex.foreach({case(v, i) =>
           s.append("\t" * (l+1))
@@ -115,9 +115,9 @@ object Printer {
         })
 
         s.append("\n}\n\n")
-      case m @ MethodDecl(overrides, retType, id, args, vars, exprs, retExpr) =>
+      case MethodDecl(overrides, retType, id, args, vars, exprs, retExpr) =>
         val ovrr = if(overrides) s"${keywords(OVERRIDE)} " else ""
-        s.append(s"$ovrr${keywords(DEF)} ${valOrSymbol(m)}${keywords(LPAREN)}")
+        s.append(s"$ovrr${keywords(DEF)} ${valOrSymbol(id)}${keywords(LPAREN)}")
 
         args.zipWithIndex.foreach({case (a, i) =>
           s.append(s"${valOrSymbol(a)} ${keywords(COLON)} ${valOrSymbol(a.tpe)}")

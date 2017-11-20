@@ -1,6 +1,8 @@
 package punkt0
 package analyzer
 
+import punkt0.analyzer.Types.Typed
+
 object Symbols {
 
   // This is a trait that is mixed in with symbolic AST nodes
@@ -19,7 +21,7 @@ object Symbols {
   }
 
   // This class represents a symbol with a name and an id
-  sealed abstract class Symbol extends Positioned {
+  sealed abstract class Symbol extends Positioned with Typed{
     val id: Int = ID.next
     val name: String
     def lookupVar(n : String): Option[VariableSymbol]

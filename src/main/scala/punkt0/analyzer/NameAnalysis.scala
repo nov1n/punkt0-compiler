@@ -35,7 +35,8 @@ object NameAnalysis extends Phase[Program, Program] {
         // Add symbol to parent ~identifier~ for printing
         // Enforce parent class exists
         parentSymbolOption match { // TODO: Extract to Enforce object
-          case Some(parentSymbol) => parentTree.setSymbol(parentSymbol)
+          case Some(parentSymbol) =>
+            parentTree.setSymbol(parentSymbol)
           case None =>
             parentTree.setSymbol(new SymbolNotExists())
             Reporter.error("extending unexisting class: " + parentTree.value, c)
@@ -51,11 +52,13 @@ object NameAnalysis extends Phase[Program, Program] {
     // Main
     val ms = new ClassSymbol(prog.main.obj.value).setPos(prog.main)
     prog.main.setSymbol(ms)
+    prog.main.obj.setSymbol(ms)
     globalScope.mainClass = ms
     prog.main.vars.foreach(v => {
       Enforce.varUniqueInScope(v, prog.main)
       val variableSymbol = new VariableSymbol(v.id.value).setPos(v)
       v.setSymbol(variableSymbol)
+      v.id.setSymbol(variableSymbol)
       prog.main.getSymbol.members += variableSymbol.name -> variableSymbol
     })
 
@@ -66,6 +69,7 @@ object NameAnalysis extends Phase[Program, Program] {
 
       // Classes
       c.setSymbol(classSymbol)
+      c.id.setSymbol(classSymbol)
       Enforce.classUnique(className, globalScope.classes)
       globalScope.classes += className -> classSymbol
     })
@@ -79,6 +83,7 @@ object NameAnalysis extends Phase[Program, Program] {
         Enforce.varUniqueInScope(v, c)
         val variableSymbol = new VariableSymbol(variableName).setPos(v)
         v.setSymbol(variableSymbol)
+        v.id.setSymbol(variableSymbol)
         c.getSymbol.members += variableName -> variableSymbol
       })
 
@@ -89,6 +94,7 @@ object NameAnalysis extends Phase[Program, Program] {
         val methodSymbol = new MethodSymbol(methodName, c.getSymbol).setPos(m)
         Enforce.methodDoesYetNotExitInClass(m, c)
         m.setSymbol(methodSymbol)
+        m.id.setSymbol(methodSymbol)
         c.getSymbol.methods += methodName -> methodSymbol
 
         // Arguments
@@ -96,6 +102,7 @@ object NameAnalysis extends Phase[Program, Program] {
           val variableName = a.id.value
           val variableSymbol = new VariableSymbol(variableName).setPos(a)
           a.setSymbol(variableSymbol)
+          a.id.setSymbol(variableSymbol)
           m.getSymbol.argList = m.getSymbol.argList :+ variableSymbol
         })
 
@@ -105,6 +112,7 @@ object NameAnalysis extends Phase[Program, Program] {
           Enforce.varUniqueInScope(v, m)
           val variableSymbol = new VariableSymbol(variableName).setPos(v)
           v.setSymbol(variableSymbol)
+          v.id.setSymbol(variableSymbol)
           m.getSymbol.members += variableName -> variableSymbol
         })
       })
