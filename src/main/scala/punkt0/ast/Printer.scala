@@ -7,6 +7,7 @@ import lexer._
 
 object Printer {
   private var _printSymbols = false
+  private var _printTypes = true
 
   val keywords = Map[TokenKind, String](
     COLON -> ":",
@@ -235,8 +236,9 @@ object Printer {
     s
   }
 
+
   def valOrSymbol(node: Tree) : String = node match {
-    case x: Symbolic[Symbol] if _printSymbols => x.getSymbol.toString
+    case x: Symbolic[Symbol] if _printSymbols => x.getSymbol.toString + (if(_printTypes){"(" +  x.getSymbol.getType + ")"} else "")
     case c: MethodCall => s"${c.meth.value}#??"
     case UnitType() => keywords(UNIT)
     case StringType() => keywords(STRING)

@@ -3,6 +3,7 @@ package analyzer
 
 import ast.Trees._
 import Symbols._
+import punkt0.analyzer.Types._
 
 object NameAnalysis extends Phase[Program, Program] {
 
@@ -10,7 +11,7 @@ object NameAnalysis extends Phase[Program, Program] {
 
   def run(prog: Program)(ctx: Context): Program = {
     // Step 1: Collect symbols in declarations
-    collectSymbols(prog)
+    collectSymbolsWithTypes(prog)
     //debug()
 
     // Step 1.5: Create the class hierarchy
@@ -48,15 +49,37 @@ object NameAnalysis extends Phase[Program, Program] {
     })
   }
 
-  private def collectSymbols(prog: Program): Unit = {
+  def attachType(s : Symbol, tree : Tree): Unit = {
+    def typeTreeToTyped(t : Tree): Type = t match {
+      case BooleanType() => TBoolean
+      case IntType() => TInt
+      case UnitType() => TUnit
+      case StringType() => TString
+      case Identifier(x) => TClass(globalScope.lookupClass(x).get)
+    }
+
+    val resType = s match {
+      case symbol: ClassSymbol => TClass(symbol)
+      case _ : VariableSymbol => tree match {
+        case f: Formal => typeTreeToTyped(f.tpe)
+        case v: VarDecl => typeTreeToTyped(v.tpe)
+      }
+      case _ : MethodSymbol => typeTreeToTyped(tree.asInstanceOf[MethodDecl].retType)
+    }
+    s.setType(resType)
+  }
+
+  private def collectSymbolsWithTypes(prog: Program): Unit = {
     // Main
-    val ms = new ClassSymbol(prog.main.obj.value)//.setPos(prog.main).setType()
+    val ms = new ClassSymbol(prog.main.obj.value).setPos(prog.main)
+    attachType(ms, prog.main)
     prog.main.setSymbol(ms)
     prog.main.obj.setSymbol(ms)
     globalScope.mainClass = ms
     prog.main.vars.foreach(v => {
       Enforce.varUniqueInScope(v, prog.main)
       val variableSymbol = new VariableSymbol(v.id.value).setPos(v)
+      attachType(variableSymbol, v)
       v.setSymbol(variableSymbol)
       v.id.setSymbol(variableSymbol)
       prog.main.getSymbol.members += variableSymbol.name -> variableSymbol
@@ -66,6 +89,7 @@ object NameAnalysis extends Phase[Program, Program] {
     prog.classes.foreach(c => {
       val className = c.id.value
       val classSymbol = new ClassSymbol(className).setPos(c)
+      attachType(classSymbol, c)
 
       // Classes
       c.setSymbol(classSymbol)
@@ -82,6 +106,7 @@ object NameAnalysis extends Phase[Program, Program] {
         val variableName = v.id.value
         Enforce.varUniqueInScope(v, c)
         val variableSymbol = new VariableSymbol(variableName).setPos(v)
+        attachType(variableSymbol, v)
         v.setSymbol(variableSymbol)
         v.id.setSymbol(variableSymbol)
         c.getSymbol.members += variableName -> variableSymbol
@@ -92,6 +117,7 @@ object NameAnalysis extends Phase[Program, Program] {
         // Methods
         val methodName = m.id.value
         val methodSymbol = new MethodSymbol(methodName, c.getSymbol).setPos(m)
+        attachType(methodSymbol, m)
         Enforce.methodDoesYetNotExitInClass(m, c)
         m.setSymbol(methodSymbol)
         m.id.setSymbol(methodSymbol)
@@ -101,6 +127,7 @@ object NameAnalysis extends Phase[Program, Program] {
         m.args.foreach(a => {
           val variableName = a.id.value
           val variableSymbol = new VariableSymbol(variableName).setPos(a)
+          attachType(variableSymbol, a)
           a.setSymbol(variableSymbol)
           a.id.setSymbol(variableSymbol)
           m.getSymbol.argList = m.getSymbol.argList :+ variableSymbol
@@ -111,6 +138,7 @@ object NameAnalysis extends Phase[Program, Program] {
           val variableName = v.id.value
           Enforce.varUniqueInScope(v, m)
           val variableSymbol = new VariableSymbol(variableName).setPos(v)
+          attachType(variableSymbol, v)
           v.setSymbol(variableSymbol)
           v.id.setSymbol(variableSymbol)
           m.getSymbol.members += variableName -> variableSymbol

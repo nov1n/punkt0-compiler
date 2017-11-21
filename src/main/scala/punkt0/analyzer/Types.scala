@@ -58,7 +58,7 @@ object Types {
     override def toString = "Boolean"
   }
 
-  case class TClass(classSymbol: ClassSymbol) extends Type { // TODO: Test this method
+  case class TClass(classSymbol: ClassSymbol) extends Type {
     override def isSubTypeOf(tpe: Type): Boolean = tpe match {
       case TAnyRef(_) => true
       case TClass(`classSymbol`) => true
@@ -68,7 +68,7 @@ object Types {
           case `tpe` => true
           case _ => parentType.isSubTypeOf(tpe)
         }
-      case x => false
+      case _ => false
     }
   }
 
