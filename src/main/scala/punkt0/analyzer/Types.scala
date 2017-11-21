@@ -34,11 +34,50 @@ object Types {
     override def toString = "Int"
   }
 
-  // TODO: Complete by creating necessary types
+  case object TString extends Type {
+    override def isSubTypeOf(tpe: Type): Boolean = tpe match {
+      case TString => true
+      case _ => false
+    }
+    override def toString = "String"
+  }
+
+  case object TUnit extends Type {
+    override def isSubTypeOf(tpe: Type): Boolean = tpe match {
+      case TUnit => true
+      case _ => false
+    }
+    override def toString = "Unit"
+  }
+
+  case object TBoolean extends Type {
+    override def isSubTypeOf(tpe: Type): Boolean = tpe match {
+      case TBoolean => true
+      case _ => false
+    }
+    override def toString = "Boolean"
+  }
+
+  case class TClass(classSymbol: ClassSymbol) extends Type { // TODO: Test this method
+    override def isSubTypeOf(tpe: Type): Boolean = tpe match {
+      case TAnyRef(_) => true
+      case TClass(`classSymbol`) => true
+      case TClass(_) if classSymbol.parent.isDefined =>
+        val parentType = classSymbol.parent.get.getType
+        parentType match {
+          case `tpe` => true
+          case _ => parentType.isSubTypeOf(tpe)
+        }
+      case x => false
+    }
+  }
 
   case class TAnyRef(classSymbol: ClassSymbol) extends Type {
-    override def isSubTypeOf(tpe: Type): Boolean = ???
-    override def toString = classSymbol.name
+    override def isSubTypeOf(tpe: Type): Boolean = tpe match {
+      case TAnyRef(`classSymbol`) => true
+      case _ => false
+    }
+    override def toString: String = classSymbol.name
   }
 
   // special object to implement the fact that all objects are its subclasses

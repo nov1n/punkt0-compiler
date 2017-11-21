@@ -50,7 +50,7 @@ object NameAnalysis extends Phase[Program, Program] {
 
   private def collectSymbols(prog: Program): Unit = {
     // Main
-    val ms = new ClassSymbol(prog.main.obj.value).setPos(prog.main)
+    val ms = new ClassSymbol(prog.main.obj.value)//.setPos(prog.main).setType()
     prog.main.setSymbol(ms)
     prog.main.obj.setSymbol(ms)
     globalScope.mainClass = ms
