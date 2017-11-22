@@ -1,0 +1,75 @@
+class B extends A {
+
+  // TODO: Support this (without bracket)
+  //def bar() : Unit = 5
+
+  def bar() : Unit = {5}
+
+  def food(der : A): Int = {
+    // Incorrect vars
+    var v1: Int = 18;
+    var v5: A = new B();
+    var v6: String = true;
+    var v7: Int = "1";
+    var v8: Boolean = new A();
+
+    // Wrong type in assignment
+    value = 42;
+    value = "Hey";
+    value = new B();
+
+    // Block
+    {
+      // Adding different type arguments
+      5 + "hey"
+    };
+
+    // Plus
+    // String + Int
+    "Hey" + 5;
+    // String + String
+    "Hey" + "there";
+    // Int + String
+    5 + "Bye";
+    // Int + Int
+    5 + 6;
+    // Boolean + String
+    true + "Hey";
+    // Int + Boolean
+    3 + true;
+    // String + Boolean
+    "string" + false;
+
+    // Minus
+    v1 - 5;
+    6 - 7;
+    true - 3;
+    false - "hey";
+    "hey" - 1;
+    value;
+
+    // Equals
+    5 == 9;
+    "hello" == "bye";
+    true == false;
+    "hello" == true;
+    5 == "hello"
+  }
+}
+
+class A {
+  var value: Int = 0;
+  def foo(bar : A): A = {
+    var durr: A = null;
+    var value: Boolean = true;
+    value = false;
+
+    durr = bar;
+    durr
+  }
+}
+
+object Main extends App {
+  //println(new B().foo())
+  println("Hey")
+}

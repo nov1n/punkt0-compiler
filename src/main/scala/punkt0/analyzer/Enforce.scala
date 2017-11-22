@@ -5,7 +5,6 @@ import punkt0.analyzer.Symbols.{ClassSymbol, MethodSymbol, Symbol, Symbolic, Var
 import punkt0.ast.Trees._
 
 object Enforce {
-
   def varUniqueInClassHierarchy(v: VarDecl, scope: Symbolic[_]): Unit = {
     val scopeSymbol = scope.getSymbol
     val parent = scopeSymbol match {
@@ -68,18 +67,36 @@ object Enforce {
     case _ => Reporter.error(s"illigal variable delcaration, should be a constant or new'", v.id)
   }
 
-  def methodUniqueInClassHierarchyOrOverrides(m: MethodDecl) : Unit = { // TODO: Test this
+  def methodConstraints(m: MethodDecl) : Unit = {
     // Enforce unique name in scope
-    val parent = m.getSymbol.classSymbol.parent // Don't count in this class because it will always be defined
+    val parent = m.getSymbol.classSymbol.parent
     if(parent.isDefined) {
-      val parentMethodDecl = parent.get.lookupMethod(m.id.value)
-      if (parentMethodDecl.isDefined) {
+      val parentMethodDeclOpt = parent.get.lookupMethod(m.id.value)
+      if (parentMethodDeclOpt.isDefined) {
+        val parentMethodDecl = parentMethodDeclOpt.get
+
+        // Enforce override modifier if it already exists in scope
         if(m.overrides) {
-          if (m.getSymbol.argList.size != parentMethodDecl.get.argList.size) {
-            Reporter.error(s"'${m.id.value}' overrides a method in superclass ${parentMethodDecl.get.classSymbol.name} with different number of arguments.", m)
+          // Enforce size of overridden arguments it the same as the parent
+          if (m.getSymbol.argList.size != parentMethodDecl.argList.size) {
+            Reporter.error(s"'${m.id.value}' overrides a method in superclass ${parentMethodDecl.classSymbol.name} with different number of arguments.", m)
+          }
+
+          // Enforce all arguments of overridden method have same type as parent
+          for((a1, a2) <- m.getSymbol.argList.zip(parentMethodDecl.argList)) {
+            if (a1.getType != a2.getType) {
+              Reporter.error(s"'${m.id.value}' overrides a method in superclass ${parentMethodDecl.classSymbol.name} with different types of arguments: ${a1.getType}, ${a2.getType}.", m)
+            }
+          }
+
+          // Enforce return types to match
+          val r1 = m.getSymbol.getType
+          val r2 =parentMethodDecl.getType
+          if(r1 != r2) {
+            Reporter.error(s"'${m.id.value}' overrides a method in superclass ${parentMethodDecl.classSymbol.name} with different types of return argument: $r1, $r2.", m)
           }
         } else {
-          Reporter.error(s"'${m.id.value}' overrides a method in superclass ${parentMethodDecl.get.classSymbol.name} without override modifier.", m)
+          Reporter.error(s"'${m.id.value}' overrides a method in superclass ${parentMethodDecl.classSymbol.name} without override modifier.", m)
         }
       }
     }

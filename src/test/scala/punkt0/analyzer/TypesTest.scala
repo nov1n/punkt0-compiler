@@ -13,6 +13,7 @@ class TypesTest extends FlatSpec with Matchers {
   val cs1: ClassSymbol = new ClassSymbol("parent1")
   cs1.setType(TClass(cs1))
   val cso = new ClassSymbol("other")
+  cso.setType(TClass(cso))
   val cto = TClass(cso)
 
   classSymbol.parent = Some(cs1)
@@ -48,4 +49,6 @@ class TypesTest extends FlatSpec with Matchers {
     types(4).isSubTypeOf(cso.getType) should equal (false)
     cso.getType.isSubTypeOf(types(4)) should equal (false)
   }
+
+  //TODO: TEst anyref
 }

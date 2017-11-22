@@ -3,7 +3,7 @@ package punkt0
 import java.io.File
 
 import lexer._
-import analyzer.NameAnalysis
+import analyzer.{NameAnalysis, TypeChecking}
 import ast.{Parser, Printer, PrinterTree}
 
 
@@ -111,10 +111,13 @@ object Main {
     }
 
     val named = NameAnalysis.run(parsed)(ctx)
+    Reporter.terminateIfErrors()
+
+    val typeCorrect = TypeChecking.run(named)(ctx)
+    Reporter.terminateIfErrors()
 
     if(ctx.doSymbolIds) {
       val namedAST = Printer.apply(named, printSymbols = true)
-      Reporter.terminateIfErrors()
       print(namedAST)
     }
   }

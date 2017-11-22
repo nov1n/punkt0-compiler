@@ -11,8 +11,7 @@ object NameAnalysis extends Phase[Program, Program] {
 
   def run(prog: Program)(ctx: Context): Program = {
     // Step 1: Collect symbols in declarations
-    collectSymbolsWithTypes(prog)
-    //debug()
+    collectSymbols(prog)
 
     // Step 1.5: Create the class hierarchy
     addClassHierarchy(prog)
@@ -23,7 +22,13 @@ object NameAnalysis extends Phase[Program, Program] {
     // Step 2: Attach symbols to identifiers (except method calls) in method bodies
     symbolizeIdentifiers(prog)
 
-    // Make sure you check all constraints
+    // Step 3: Add types to symbols
+    attachTypes(prog)
+
+    // Step 4: Enforce type-based constraints
+    prog.classes.foreach(c => c.methods.foreach(Enforce.methodConstraints))
+
+//    debug()
 
     prog
   }
@@ -55,7 +60,11 @@ object NameAnalysis extends Phase[Program, Program] {
       case IntType() => TInt
       case UnitType() => TUnit
       case StringType() => TString
-      case Identifier(x) => TClass(globalScope.lookupClass(x).get)
+      case Identifier(x) => globalScope.lookupClass(x) match {
+        case Some(c) => TClass(c)
+        // Add this so that we can continue with the phase, will never be used because an error has been reported previously
+        case None => TClass(new ClassSymbol(""))
+      }
     }
 
     val resType = s match {
@@ -69,17 +78,53 @@ object NameAnalysis extends Phase[Program, Program] {
     s.setType(resType)
   }
 
-  private def collectSymbolsWithTypes(prog: Program): Unit = {
+  private def attachTypes(prog: Program) : Unit = {
+    // Main
+    attachType(prog.main.getSymbol, prog.main)
+    prog.main.vars.foreach(v => {
+      attachType(v.getSymbol, v)
+    })
+
+    // Classes
+    prog.classes.foreach(c => {
+      attachType(c.getSymbol, c)
+    })
+
+    // Variables
+    // Methods
+    prog.classes.foreach(c => {
+      // Variables
+      c.vars.foreach(v => {
+        attachType(v.getSymbol, v)
+      })
+
+      // Methods
+      c.methods.foreach(m => {
+        // Methods
+        attachType(m.getSymbol, m)
+
+        // Arguments
+        m.args.foreach(a => {
+          attachType(a.getSymbol, a)
+        })
+
+        // Variables
+        m.vars.foreach(v => {
+          attachType(v.getSymbol, v)
+        })
+      })
+    })
+  }
+
+  private def collectSymbols(prog: Program): Unit = {
     // Main
     val ms = new ClassSymbol(prog.main.obj.value).setPos(prog.main)
-    attachType(ms, prog.main)
     prog.main.setSymbol(ms)
     prog.main.obj.setSymbol(ms)
     globalScope.mainClass = ms
     prog.main.vars.foreach(v => {
       Enforce.varUniqueInScope(v, prog.main)
       val variableSymbol = new VariableSymbol(v.id.value).setPos(v)
-      attachType(variableSymbol, v)
       v.setSymbol(variableSymbol)
       v.id.setSymbol(variableSymbol)
       prog.main.getSymbol.members += variableSymbol.name -> variableSymbol
@@ -89,7 +134,6 @@ object NameAnalysis extends Phase[Program, Program] {
     prog.classes.foreach(c => {
       val className = c.id.value
       val classSymbol = new ClassSymbol(className).setPos(c)
-      attachType(classSymbol, c)
 
       // Classes
       c.setSymbol(classSymbol)
@@ -106,7 +150,6 @@ object NameAnalysis extends Phase[Program, Program] {
         val variableName = v.id.value
         Enforce.varUniqueInScope(v, c)
         val variableSymbol = new VariableSymbol(variableName).setPos(v)
-        attachType(variableSymbol, v)
         v.setSymbol(variableSymbol)
         v.id.setSymbol(variableSymbol)
         c.getSymbol.members += variableName -> variableSymbol
@@ -117,7 +160,6 @@ object NameAnalysis extends Phase[Program, Program] {
         // Methods
         val methodName = m.id.value
         val methodSymbol = new MethodSymbol(methodName, c.getSymbol).setPos(m)
-        attachType(methodSymbol, m)
         Enforce.methodDoesYetNotExitInClass(m, c)
         m.setSymbol(methodSymbol)
         m.id.setSymbol(methodSymbol)
@@ -127,7 +169,6 @@ object NameAnalysis extends Phase[Program, Program] {
         m.args.foreach(a => {
           val variableName = a.id.value
           val variableSymbol = new VariableSymbol(variableName).setPos(a)
-          attachType(variableSymbol, a)
           a.setSymbol(variableSymbol)
           a.id.setSymbol(variableSymbol)
           m.getSymbol.argList = m.getSymbol.argList :+ variableSymbol
@@ -138,7 +179,6 @@ object NameAnalysis extends Phase[Program, Program] {
           val variableName = v.id.value
           Enforce.varUniqueInScope(v, m)
           val variableSymbol = new VariableSymbol(variableName).setPos(v)
-          attachType(variableSymbol, v)
           v.setSymbol(variableSymbol)
           v.id.setSymbol(variableSymbol)
           m.getSymbol.members += variableName -> variableSymbol
@@ -183,7 +223,6 @@ object NameAnalysis extends Phase[Program, Program] {
         symbolizeIdentifiers(retType, scope)
         args.foreach(symbolizeIdentifiers(_, scope))
         Enforce.uniqueNames(args, scope)
-        Enforce.methodUniqueInClassHierarchyOrOverrides(m)
         vars.foreach(symbolizeIdentifiers(_, scope))
         exprs.foreach(symbolizeIdentifiers(_, scope))
         symbolizeIdentifiers(retExpr, scope)
@@ -204,7 +243,8 @@ object NameAnalysis extends Phase[Program, Program] {
       case If(expr, thn, els) =>
         binaryTraverse(expr, thn)
         if(els.isDefined) symbolizeIdentifiers(els.get, scope)
-      case IntType() | StringType() | BooleanType() | UnitType() | IntLit(_) | StringLit(_) | False() | True() | This() | Null() => Unit
+      case t @ This() => t.setSymbol(scope.getSymbol.asInstanceOf[MethodSymbol].classSymbol) // Expressions only allowed in methods
+      case IntType() | StringType() | BooleanType() | UnitType() | IntLit(_) | StringLit(_) | False() | True() | Null() => Unit
     }
   }
 
@@ -227,15 +267,18 @@ object NameAnalysis extends Phase[Program, Program] {
     println()
     println("GLOBAL CLASSES:")
     globalScope.classes.foreach(x => {
-      println(x._2 + " extends " + x._2.parent)
+      println(x._2 + "(" + x._2.getType +") extends " + x._2.parent)
       x._2.members.foreach(y => {
-        println("\t" + y._2)
+        println("\t" + y._2+"("+y._2.getType+")")
       })
       println()
       x._2.methods.foreach(y => {
-        println("\t" + y._2 + " overrides " + y._2.overridden + " (" + y._2.argList.mkString(", ") + ")")
+        println("\t" + y._2+"("+y._2.getType + ") overrides " + y._2.overridden + " (" + y._2.argList.mkString(", ") + ")")
+        y._2.argList.foreach(z => {
+          println(z + "("+z.getType+")")
+        })
         y._2.members.foreach(z => {
-          println("\t\t" + z._2)
+          println("\t\t" + z._2 + "("+z._2.getType+")")
         })
       })
       println()

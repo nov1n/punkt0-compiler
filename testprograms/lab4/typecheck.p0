@@ -1,0 +1,55 @@
+class A {
+  var v1: Int = 0;
+  var v2: Boolean = true;
+  var v3: String = "1";
+  var v4: A = new A();
+
+  def methodStr() : String = {"hey"}
+
+  def newA() : A = {null}
+
+  def methodV(a : Int, b: Boolean, c: String, d: A) : Unit = {
+    var v1: Int = 0;
+    var v2: Boolean = true;
+    var v3: String = "1";
+    var v4: A = new B();
+    var v5: String = "";
+    var v6: B = null;
+    var v7: A = null;
+    v6 = new B();
+    v7 = v6.newA();
+    // Block assignment
+    v5 = {
+        5;
+        true;
+        "hey"
+    };
+    5 - 3;
+    "hey" + "hey";
+    3 + 6;
+    5 == 6;
+    false == true;
+    v4 == v7;
+    //v3 = v4.methodStr();
+    false == !false;
+    !true;
+
+    v3 = {
+      "hey";
+      "string"
+    };
+
+    println("Hey")
+  }
+}
+
+class B extends A{
+  override def newA() : A = {
+    null
+  }
+
+}
+
+object Main extends App {
+  println("hello world")
+}

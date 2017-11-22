@@ -7,9 +7,9 @@ import lexer._
 
 object Printer {
   private var _printSymbols = false
-  private var _printTypes = true
+  private val _printTypes = false
 
-  val keywords = Map[TokenKind, String](
+  val keywords: Map[TokenKind, String] = Map[TokenKind, String](
     COLON -> ":",
     SEMICOLON -> ";",
     DOT -> ".",
@@ -121,7 +121,7 @@ object Printer {
         s.append(s"$ovrr${keywords(DEF)} ${valOrSymbol(id)}${keywords(LPAREN)}")
 
         args.zipWithIndex.foreach({case (a, i) =>
-          s.append(s"${valOrSymbol(a)} ${keywords(COLON)} ${valOrSymbol(a.tpe)}")
+          s.append(s"${valOrSymbol(a.id)} ${keywords(COLON)} ${valOrSymbol(a.tpe)}")
           if (i != args.size - 1) s.append(s"${keywords(COMMA)} ")
         })
 
@@ -193,6 +193,7 @@ object Printer {
       case New(id) =>
         s.append(valOrSymbol(id))
       case Not(expr) =>
+        s.append(s"${keywords(BANG)}")
         s = apply(s, l, expr)
       case Assign(id, expr) =>
         s.append(s"${valOrSymbol(id)} ${keywords(EQSIGN)} ")
@@ -223,9 +224,9 @@ object Printer {
         s = apply(s, l, cond)
         s.append(s"${keywords(RPAREN)} ")
         s = apply(s, l, body)
-      case m @ MethodCall(obj, meth, args) =>
+      case MethodCall(obj, meth, args) =>
         s = apply(s, l, obj)
-        s.append(s"${keywords(DOT)}${valOrSymbol(m)}${keywords(LPAREN)}")
+        s.append(s"${keywords(DOT)}${valOrSymbol(meth)}${keywords(LPAREN)}")
         args.zipWithIndex.foreach({case (a, i) =>
           s = apply(s, l, a)
           if (i != args.size - 1) s.append(s"${keywords(COMMA)} ")
@@ -236,10 +237,8 @@ object Printer {
     s
   }
 
-
   def valOrSymbol(node: Tree) : String = node match {
     case x: Symbolic[Symbol] if _printSymbols => x.getSymbol.toString + (if(_printTypes){"(" +  x.getSymbol.getType + ")"} else "")
-    case c: MethodCall => s"${c.meth.value}#??"
     case UnitType() => keywords(UNIT)
     case StringType() => keywords(STRING)
     case IntType() => keywords(INT)

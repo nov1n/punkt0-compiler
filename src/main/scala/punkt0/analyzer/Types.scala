@@ -22,7 +22,10 @@ object Types {
   }
 
   case object TUntyped extends Type {
-    override def isSubTypeOf(tpe: Type): Boolean = false
+    override def isSubTypeOf(tpe: Type): Boolean = tpe match {
+      case TUntyped => true
+      case _ => false
+    } // Changed from false to true
     override def toString = "[untyped]"
   }
 

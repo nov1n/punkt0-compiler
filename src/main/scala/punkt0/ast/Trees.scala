@@ -41,7 +41,8 @@ object Trees {
     // The type of the identifier depends on the type of the symbol
     override def getType: Type = getSymbol match {
       case cs: ClassSymbol =>
-        TAnyRef(cs)
+//        TAnyRef(cs) // TODO: This was implemented by TAs but i think it should be what is below
+        TClass(cs)
 
       case ms: MethodSymbol =>
         sys.error("Requesting type of a method identifier.")
