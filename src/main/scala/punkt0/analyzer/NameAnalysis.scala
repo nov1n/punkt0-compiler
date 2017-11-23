@@ -38,14 +38,10 @@ object NameAnalysis extends Phase[Program, Program] {
       case Some(parentTree) =>
         val parentSymbolOption = globalScope.lookupClass(parentTree.value)
 
-        // Add symbol to parent ~identifier~ for printing
         // Enforce parent class exists
-        parentSymbolOption match { // TODO: Extract to Enforce object
-          case Some(parentSymbol) =>
-            parentTree.setSymbol(parentSymbol)
-          case None =>
-            parentTree.setSymbol(new SymbolNotExists())
-            Reporter.error("extending unexisting class: " + parentTree.value, c)
+        parentSymbolOption match {
+          case Some(parentSymbol) => parentTree.setSymbol(parentSymbol)
+          case None => Reporter.error("extending unexisting class: " + parentTree.value, c)
         }
 
         // Create a link between parent and children symbols for variable lookups
@@ -268,7 +264,6 @@ object NameAnalysis extends Phase[Program, Program] {
         case Some(x) => id.setSymbol(x)
         case None =>
           Reporter.error(s"'${id.value}' not defined", id)
-          id.setSymbol(new SymbolNotExists())
       }
     }
   }

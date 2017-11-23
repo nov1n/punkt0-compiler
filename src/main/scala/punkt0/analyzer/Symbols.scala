@@ -30,7 +30,7 @@ object Symbols {
 
   // This object is an ID generator
   private object ID {
-    private var c: Int = 1 // TODO: Changed this to 1 to match example output
+    private var c: Int = 1 // Changed this to 1 to match example output
 
     def next: Int = {
       val ret = c
@@ -96,8 +96,6 @@ object Symbols {
 
   // This class represents a variable scope (1)
   class VariableSymbol(val name: String) extends Symbol {
-    // TODO: Verify if this is needed. We add lookupVar to the Symbol interface
-    // TODO: such that we can call lookupVar on any symbol in the symbolizeIdentifiers method.
     def lookupVar(n: String): Option[VariableSymbol] = {
       n match {
         case _ if n == name => Some(this)
@@ -105,11 +103,4 @@ object Symbols {
       }
     }
   }
-
-  // This is assigned when the symbol does not exist, so that we can still print it
-  class SymbolNotExists extends Symbol {
-    override val name: String = "DOES_NOT_EXIST"
-    override def lookupVar(n: String): Option[VariableSymbol] = None
-  }
-
 }

@@ -1,6 +1,5 @@
 class B extends A {
 
-  // TODO: Support this (without bracket)
   //def bar() : Unit = 5
 
   def bar() : Unit = {5}
@@ -47,6 +46,7 @@ class B extends A {
     false - "hey";
     "hey" - 1;
     value;
+    a = new G();
 
     // Equals
     5 == 9;
