@@ -68,6 +68,7 @@ object NameAnalysis extends Phase[Program, Program] {
     }
 
     val resType = s match {
+      case symbol : ClassSymbol if symbol.name == "App" => appRef
       case symbol: ClassSymbol => TClass(symbol)
       case _ : VariableSymbol => tree match {
         case f: Formal => typeTreeToTyped(f.tpe)
@@ -80,6 +81,7 @@ object NameAnalysis extends Phase[Program, Program] {
 
   private def attachTypes(prog: Program) : Unit = {
     // Main
+    attachType(prog.main.parent.getSymbol, prog.main.parent)
     attachType(prog.main.getSymbol, prog.main)
     prog.main.vars.foreach(v => {
       attachType(v.getSymbol, v)
@@ -117,6 +119,13 @@ object NameAnalysis extends Phase[Program, Program] {
   }
 
   private def collectSymbols(prog: Program): Unit = {
+    prog.main.parent.setSymbol(new ClassSymbol(prog.main.parent.value))
+
+    // Ensure the parent is 'App'
+    if(prog.main.parent.value != appRef.classSymbol.name) {
+      Reporter.error(s"Main object should extend 'App'", prog.main)
+    }
+
     // Main
     val ms = new ClassSymbol(prog.main.obj.value).setPos(prog.main)
     prog.main.setSymbol(ms)
@@ -243,7 +252,11 @@ object NameAnalysis extends Phase[Program, Program] {
       case If(expr, thn, els) =>
         binaryTraverse(expr, thn)
         if(els.isDefined) symbolizeIdentifiers(els.get, scope)
-      case t @ This() => t.setSymbol(scope.getSymbol.asInstanceOf[MethodSymbol].classSymbol) // Expressions only allowed in methods
+      case t @ This() => t.setSymbol(scope.getSymbol match {
+        case m : MethodSymbol => m.classSymbol
+        case c : ClassSymbol => c
+        case x => sys.error(s"'This' scope was $x")
+      }) // Expressions only allowed in methods
       case IntType() | StringType() | BooleanType() | UnitType() | IntLit(_) | StringLit(_) | False() | True() | Null() => Unit
     }
   }

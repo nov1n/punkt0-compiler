@@ -31,6 +31,9 @@ class TypeCheckTest extends FlatSpec with Matchers{
     a.parent = Some(e)
     c.parent = Some(e)
 
+    TypeChecking.calcLeastUpperBound(e.getType, c.getType) should equal (e.getType)
+    TypeChecking.calcLeastUpperBound(c.getType, e.getType) should equal (e.getType)
+
     TypeChecking.calcLeastUpperBound(b.getType, c.getType) should equal (e.getType)
     TypeChecking.calcLeastUpperBound(c.getType, b.getType) should equal (e.getType)
 

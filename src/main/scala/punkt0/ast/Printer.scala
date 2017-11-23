@@ -238,7 +238,7 @@ object Printer {
   }
 
   def valOrSymbol(node: Tree) : String = node match {
-    case x: Symbolic[Symbol] if _printSymbols => x.getSymbol.toString + (if(_printTypes){"(" +  x.getSymbol.getType + ")"} else "")
+    case x: Symbolic[_] if _printSymbols => x.getSymbol.toString + (if(_printTypes){s"(${x.getSymbol.getType})"} else "")
     case UnitType() => keywords(UNIT)
     case StringType() => keywords(STRING)
     case IntType() => keywords(INT)

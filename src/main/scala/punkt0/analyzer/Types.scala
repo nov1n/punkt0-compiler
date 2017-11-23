@@ -85,4 +85,5 @@ object Types {
 
   // special object to implement the fact that all objects are its subclasses
   val anyRef = TAnyRef(new ClassSymbol("AnyRef"))
+  val appRef = TAnyRef(new ClassSymbol("App"))
 }

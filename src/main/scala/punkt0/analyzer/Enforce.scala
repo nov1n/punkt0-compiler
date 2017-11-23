@@ -111,6 +111,12 @@ object Enforce {
       case _ => Unit
     }
 
+    // Enforce unique name in global scope (class names)
+    NameAnalysis.globalScope.lookupClass(v.id.value) match {
+      case Some(x) => Reporter.error(s"'${v.id.value}' shadows a class defined at ${x.posString} which is not allowed.", v)
+      case None => Unit
+    }
+
     // Enforce unique name in scope
     val sym = scope.getSymbol.asInstanceOf[Symbol].lookupVar(v.id.value)
     sym match {

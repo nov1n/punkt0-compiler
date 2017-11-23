@@ -3,12 +3,13 @@ class A {
   var v2: Boolean = true;
   var v3: String = "1";
   var v4: A = new A();
+  var v8: A = new A();
 
   def methodStr() : String = {"hey"}
 
-  def newA() : A = {null}
+  def newA(a : A, b : B) : A = {null}
 
-  def methodV(a : Int, b: Boolean, c: String, d: A) : Unit = {
+  def methodV(a : Int, v8: Boolean, c: String, d: A) : Unit = {
     var v1: Int = 0;
     var v2: Boolean = true;
     var v3: String = "1";
@@ -16,8 +17,11 @@ class A {
     var v5: String = "";
     var v6: B = null;
     var v7: A = null;
+    var b : Int = 0;
+    a = 5;
+    a = 5;
     v6 = new B();
-    v7 = v6.newA();
+    v7 = v6.newA(new A(), new C());
     // Block assignment
     v5 = {
         5;
@@ -39,17 +43,50 @@ class A {
       "string"
     };
 
+    this;
     println("Hey")
   }
 }
 
 class B extends A{
-  override def newA() : A = {
+  override def newA(a : A, b : B) : A = {
+    this;
     null
   }
 
 }
 
+class C extends B {
+  def foo() : B = {
+    var c : B = new C();
+    c = this;
+    c
+  }
+
+  def bar() : C = {
+    var a : A = null;
+    println("hey");
+    println(1);
+    println(true);
+    //println(new A());
+    while(5 == 3) println("foo");
+    {};
+    {
+      println("hey");
+      5
+    };
+
+    a = if(5 < 3) {
+      new C()
+    } else {
+      new B()
+    };
+    new C()
+  }
+}
+
 object Main extends App {
+  var c : C = new C();
   println("hello world")
+  //c = this // TODO: What is the expected behavior here?
 }

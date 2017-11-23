@@ -14,11 +14,11 @@ A valid Punkt0 program has the following properties:
 * It follows the Punkt0 concrete syntax.
 * It respects all the constraints mentioned in [Lab 4](lab4.html).
 * Method overriding respects some typing constraints:
-  [x] The overriding method must have exactly as many parameters as the overridden one.
-  [x] The types of the parameters in the overriding and overridden methods must match exactly (no contravariance allowed).
-  [x] The return type must match exactly (no covariance allowed).
-  [x] The overriding method must carry the `override` modifier.
-[x] All expressions typecheck and have the expected type (the returned expression matches the declared return type, for instance).
+    - [x] The overriding method must have exactly as many parameters as the overridden one.
+    - [x] The types of the parameters in the overriding and overridden methods must match exactly (no contravariance allowed).
+    - [x] The return type must match exactly (no covariance allowed).
+    - [x] The overriding method must carry the `override` modifier.
+- [x] All expressions typecheck and have the expected type (the returned expression matches the declared return type, for instance).
 
 Your goal in this assignment is to enforce all the constraints not
 enforced already by the previous phases.
@@ -61,7 +61,7 @@ should implement, but we expect you to be able to deduce the other
 rules unambiguously yourself (if in doubt about a rule, ask on KTH
 Social).
 
-[ ]
+- [x]
 ### Overloaded `+`
 
 The `+` operator can represent integer addition, or string
@@ -75,7 +75,7 @@ respectively, we have for the type **T**s of **e**1 + **e**2:
 
 All other values for **T**1 and **T**2 should result in type errors.
 
-[ ]
+- [x]
 ### Comparison operator
 
 The `==` operator is also overloaded. Expression `e1 == e2` is type
@@ -102,7 +102,7 @@ String | A      | no
 A      | Int    | no
 A      | B      | yes
 
-[ ]
+- [x]
 ### Method calls
 
 The dereferenced object must be of a class type, and its class must
@@ -110,7 +110,7 @@ declare or inherit the called method. The number of arguments must of course
 match the number of parameters. The passed arguments must have
 subtypes of the declared parameters (matching one-by-one).
 
-[ ]
+- [x]
 ### Assignment
 
 Assignment of an expression of type **T** can only be done to a
@@ -120,47 +120,47 @@ The type of an assignment expression is **Unit**.
 
 It is not allowed to reassign method parameters.
 
-[ ]
+- [x]
 ### This
 
 `this` is always considered to carry the class type corresponding to
 the class where it occurs.
 
-[ ]
+- [x]
 ### Returned expression
 
 The returned expression must be of a subtype of the declared return
 type.
 
-[ ]
+- [x]
 ### The `println` expression
 
 We will consider `println` calls to be type correct if the argument has type **String**, **Int**, or **Boolean**. The type of a `println` expression is **Unit**.
 
-[ ]
+- [x]
 ### The `while` expression
 
 The type of a **while** expression is **Unit**. Its conditional
 expression must have type **Boolean**, and its body must have type
 **Unit**.
 
-[ ]
+- [x]
 ### The `if` expression
 
 The type of an `if` expression is the least upper bound of the types of the two branches. Its conditional expression must have type **Boolean**.
 
-[ ]
+- [x]
 ### The block expression
 
 The type of a block expression is the type of the block's last expression.
 
-[ ]
+- [x]
 ### The main declaration
 
 The main `object` declaration must extend the built-in `App`
 type. (This is important to ensure Punkt0 is a subset of Scala.)
 
-[ ]
+- [x]
 ### Variable declarations
 
 The constant initial expression must be of the correct, declared type.
