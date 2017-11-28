@@ -1,0 +1,11 @@
+object MyMain extends App {
+  //var a : Int = 5;
+  //var a : String = "Hello!";
+  //a = 3
+  println(5);
+  //println("hello: " + "hello"); // TODO: Fix this
+  println(true);
+  println(5 + 5);
+  println(5 * 5);
+  println(5 / 5)
+}

@@ -39,23 +39,32 @@ object TypeChecking extends Phase[Program, Program] {
         case x @ This() => x.getSymbol.getType
         case x @ Identifier(_) => x.getSymbol.getType
         case New(i) => i.getType
-        case Not(e) => tcExpr(e, TBoolean)
+        case Not(e) =>
+          val tpe = tcExpr(e, TBoolean)
+          e.setType(tpe)
+          tpe
         case Println(e) =>
-          tcExpr(e, TBoolean, TString, TInt)
+          val tpe = tcExpr(e, TBoolean, TString, TInt)
+          e.setType(tpe)
           TUnit
         case Block(e) =>
           if(e.isEmpty) return TUnit
-          e.reverse.tail.map(x => tcExpr(x))
-          tcExpr(e.reverse.head, expected : _*) // TODO: Understand what it means to pass along expected
+          e.reverse.tail.map(x => x.setType(tcExpr(x)))
+          val tpe = tcExpr(e.reverse.head, expected : _*) // TODO: Understand what it means to pass along expected
+          e.reverse.head.setType(tpe)
+          tpe
         case And(l, r) =>
-          tcExpr(l, TBoolean)
-          tcExpr(r, TBoolean)
+          l.setType(tcExpr(l, TBoolean))
+          r.setType(tcExpr(r, TBoolean))
+          TBoolean
         case Or(l, r) =>
-          tcExpr(l, TBoolean)
-          tcExpr(r, TBoolean)
+          l.setType(tcExpr(l, TBoolean))
+          r.setType(tcExpr(r, TBoolean))
+          TBoolean
         case p @ Plus(l, r) =>
-          val lType = tcExpr(l)
-           lType match {
+          val lTpe = tcExpr(l)
+          l.setType(lTpe)
+           val rTpe = lTpe match {
             case TInt =>
               tcExpr(r, TInt, TString) match {
                 case TInt =>
@@ -63,7 +72,7 @@ object TypeChecking extends Phase[Program, Program] {
                 case TString =>
                   TString
                 case x =>
-                  Reporter.error(s"Type error: adding $lType to $x.", p)
+                  Reporter.error(s"Type error: adding $lTpe to $x.", p)
                   TError
               }
             case TString =>
@@ -71,28 +80,34 @@ object TypeChecking extends Phase[Program, Program] {
                 case TInt | TString =>
                   TString
                 case x =>
-                  Reporter.error(s"Type error: adding $lType to $x.", p)
+                  Reporter.error(s"Type error: adding $lTpe to $x.", p)
                   TError
               }
             case _ =>
-              Reporter.error(s"Type error: cannot add to $lType", p)
+              Reporter.error(s"Type error: cannot add to $lTpe", p)
               TError
           }
+          r.setType(rTpe)
+          rTpe
         case Minus(l, r) =>
-          tcExpr(l, TInt)
-          tcExpr(r, TInt)
+          l.setType(tcExpr(l, TInt))
+          r.setType(tcExpr(r, TInt))
+          TInt
         case Times(l, r) =>
-          tcExpr(l, TInt)
-          tcExpr(r, TInt)
+          l.setType(tcExpr(l, TInt))
+          r.setType(tcExpr(r, TInt))
+          TInt
         case Div(l, r) =>
-          tcExpr(l, TInt)
-          tcExpr(r, TInt)
+          l.setType(tcExpr(l, TInt))
+          r.setType(tcExpr(r, TInt))
+          TInt
         case LessThan(l, r) =>
-          tcExpr(l, TInt)
-          tcExpr(r, TInt)
+          l.setType(tcExpr(l, TInt))
+          r.setType(tcExpr(r, TInt))
           TBoolean
         case Equals(l, r) =>
-          tcExpr(l) match {
+          val lTpe = tcExpr(l)
+          val rTpe = lTpe match {
             case TInt => tcExpr(r, TInt)
             case TBoolean => tcExpr(r,TBoolean)
             case TString => tcExpr(r,TString)
@@ -101,10 +116,15 @@ object TypeChecking extends Phase[Program, Program] {
             case TAnyRef(cs) => tcExpr(r, cs.getType)
             case TError | TUntyped => tcExpr(r)
           }
+          l.setType(lTpe)
+          r.setType(rTpe)
           TBoolean
         case While(cond, body) =>
-          tcExpr(cond, TBoolean)
-          tcExpr(body, TUnit)
+          val condTpe = tcExpr(cond, TBoolean)
+          cond.setType(condTpe)
+          val bodyTpe = tcExpr(body, TUnit)
+          body.setType(bodyTpe)
+          bodyTpe
         case Assign(id, e) =>
           id.getSymbol match {
             case s : VariableSymbol =>
@@ -117,7 +137,8 @@ object TypeChecking extends Phase[Program, Program] {
               Reporter.error(s"Type error: cannot assign to '${id.getType}'.", id)
               return TUnit
           }
-          tcExpr(e, id.getType)
+          val eTpe = tcExpr(e, id.getType)
+          e.setType(eTpe)
           TUnit
         case MethodCall(obj, meth, args) =>
           // Find out what object the method is called on
@@ -128,7 +149,7 @@ object TypeChecking extends Phase[Program, Program] {
           args.foreach(a => a.setType(tcExpr(a)))
 
           // Return the return type of the method
-          objType match {
+          val methTpe = objType match {
             case TClass(cs) => cs.lookupMethod(meth.value) match {
               case Some(x) =>
                 // We have found the object on which the method is called
@@ -161,19 +182,27 @@ object TypeChecking extends Phase[Program, Program] {
               Reporter.error(s"Type error: cannot call methods on type '$x.", obj)
               TError
           }
+          meth.setType(methTpe)
+          methTpe
         case If(ifexp, thn, els) =>
-          tcExpr(ifexp, TBoolean)
+          val ifTpe = tcExpr(ifexp, TBoolean)
+          ifexp.setType(ifTpe)
           val thnType = tcExpr(thn)
+          thn.setType(thnType)
           els match {
             case Some(x) =>
               val elsType = tcExpr(x)
+              x.setType(elsType)
               calcLeastUpperBound(thnType, elsType)
             case None => thnType
           }
       }
 
+      // Set the corresponding type
+      expr.setType(tpe)
+
       // Debug
-      if(_printTypes) println(expr, tpe)
+      if(_printTypes) println(expr, expr.getType, tpe)
 
       // Check result and return a valid type in case of error
       if (expected.isEmpty) {
@@ -187,17 +216,17 @@ object TypeChecking extends Phase[Program, Program] {
     }
 
     def tcVarDecl(vd: VarDecl, expected: Type*): Type = vd match {
-      case VarDecl(tpe, _, expr) => tcExpr(expr, typeTreeToTyped(tpe): _*)
+      case VarDecl(tpe, _, expr) => tcExpr(expr, TUntyped::typeTreeToTyped(tpe): _*) // Can be null
     }
 
     prog.main.vars.foreach(v => tcVarDecl(v))
-    prog.main.exprs.foreach(e => tcExpr(e))
+    prog.main.exprs.foreach(e => e.setType(tcExpr(e)))
 
     prog.classes.foreach(c => c.vars.foreach(v => tcVarDecl(v)))
     prog.classes.foreach(c => c.methods.foreach(m => {
       m.vars.foreach(v => tcVarDecl(v))
-      m.exprs.foreach(e => tcExpr(e))
-      tcExpr(m.retExpr, typeTreeToTyped(m.retType): _*)
+      m.exprs.foreach(e => e.setType(tcExpr(e)))
+      m.retExpr.setType(tcExpr(m.retExpr, typeTreeToTyped(m.retType): _*))
     }))
 
     prog

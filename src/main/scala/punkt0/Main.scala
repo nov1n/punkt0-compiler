@@ -5,6 +5,7 @@ import java.io.File
 import lexer._
 import analyzer.{NameAnalysis, TypeChecking}
 import ast.{Parser, Printer, PrinterTree}
+import punkt0.code.CodeGeneration
 
 
 object Main {
@@ -117,9 +118,12 @@ object Main {
     Reporter.terminateIfErrors()
 
     if(ctx.doSymbolIds) {
-      val namedAST = Printer.apply(named, printSymbols = true)
+      val namedAST = Printer.apply(typeCorrect, printSymbols = true)
       print(namedAST)
     }
+
+    val codeGen = CodeGeneration.run(typeCorrect)(ctx)
+    // Cannot have errors
   }
 }
 
