@@ -1,11 +1,43 @@
+class Foo {
+  def bar() : Unit = {
+    println("Hey")
+  }
+}
+
 object MyMain extends App {
-  //var a : Int = 5;
-  //var a : String = "Hello!";
-  //a = 3
-  println(5);
+  var a : Boolean = true;
+  //var d : Foo = new Foo();
+  var b : Int = 20;
+  var c : String = "hurr";
+  c = "true";
+  b = 10;
+  println(a);
+  println(!!a);
+  println(c);
+  println(b);
+  while(b < 5000) {
+    b = b * 2;
+    println(b)
+  };
+  println(b);
+  if(b < 10)
+    println("TRUE!!!")
+  else
+    println("FALSE!!!");
+  println(a || true);
+  println(true || 1/0 == 5);
+  println(a && true);
+  println(true && a);
+  //println(true && 1/0 == 5);
+  println(false && 1/0 == 5);
+  println(true && true);
+  println(true && 1 < 5)
   //println("hello: " + "hello"); // TODO: Fix this
-  println(true);
-  println(5 + 5);
-  println(5 * 5);
-  println(5 / 5)
+  //println(true);
+  //println(5 + 5);
+  //println(5 * 5);
+  //println(5 / 5);
+  //println(5 < 5);
+  //println(5 == 6)
+  //this
 }

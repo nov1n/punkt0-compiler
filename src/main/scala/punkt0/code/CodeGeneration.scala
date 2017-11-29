@@ -2,12 +2,10 @@ package punkt0
 package code
 
 import ast.Trees._
-import analyzer.Symbols._
 import analyzer.Types._
 import cafebabe._
 import AbstractByteCodes.{New, _}
 import ByteCodes._
-import cafebabe.ClassFileTypes.U2
 
 object CodeGeneration extends Phase[Program, Unit] {
 
@@ -62,11 +60,22 @@ object CodeGeneration extends Phase[Program, Unit] {
     generateMainClassFile(sourceName, prog.main, outDir)
   }
 
-  def generateVarDecl(v: VarDecl, ch: CodeHandler): CodeHandler = {
-    ch
+  def generateVarDecl(v: VarDecl, ch: CodeHandler, s2v : scala.collection.mutable.Map[String, Int]): CodeHandler = {
+    generateExpr(v.expr, ch, s2v)
+
+    val var1 = ch.getFreshVar
+    s2v += v.getSymbol.toString -> var1
+    v.tpe.getType match {
+      case TClass(_) | TString =>
+        ch << AStore(var1)
+      case TInt | TBoolean =>
+        ch << IStore(var1)
+      case x =>
+        sys.error(s"Expr was $x. Should not happen.")
+    }
   }
 
-  def generateExpr(e: ExprTree, ch: CodeHandler): CodeHandler = e match {
+  def generateExpr(e: ExprTree, ch: CodeHandler, s2v : scala.collection.mutable.Map[String, Int]): CodeHandler = e match {
     case Println(en) =>
       val tpe = en.getType match {
         case TInt => "I"
@@ -84,7 +93,7 @@ object CodeGeneration extends Phase[Program, Unit] {
         AStore(var1) <<
         ALoad(var1)
 
-      generateExpr(en, ch) <<
+      generateExpr(en, ch, s2v) <<
         InvokeVirtual("java/lang/StringBuilder", "append", s"($tpe)Ljava/lang/StringBuilder;") <<
         POP <<
         ALoad(var1) <<
@@ -102,60 +111,186 @@ object CodeGeneration extends Phase[Program, Unit] {
     case IntLit(v) =>
       ch << Ldc(v)
     case Plus(l, r) => // TODO: Handle string case, switch on l type
-      generateExpr(l, ch)
-      generateExpr(r, ch)
+      generateExpr(l, ch, s2v)
+      generateExpr(r, ch, s2v)
       ch << IADD
     case Minus(l, r) =>
-      generateExpr(l, ch)
-      generateExpr(r, ch)
+      generateExpr(l, ch, s2v)
+      generateExpr(r, ch, s2v)
       ch << ISUB
     case Times(l, r) =>
-      generateExpr(l, ch)
-      generateExpr(r, ch)
+      generateExpr(l, ch, s2v)
+      generateExpr(r, ch, s2v)
       ch << IMUL
     case Div(l, r) =>
-      generateExpr(l, ch)
-      generateExpr(r, ch)
+      generateExpr(l, ch, s2v)
+      generateExpr(r, ch, s2v)
       ch << IDIV
-//    case And(l, r) =>
-//    case Or(l, r) =>
-//    case LessThan(l, r) =>
-//    case Equals(l, r) =>
+    case Equals(l, r) => // TODO: Compare things other than ints
+      generateExpr(l, ch, s2v)
+      generateExpr(r, ch, s2v)
+
+      val trueLbl = ch.getFreshLabel("equal")
+      val falseLbl = ch.getFreshLabel("notEqual")
+      ch <<
+        If_ICmpEq(trueLbl) <<
+        Ldc(0) <<
+        Goto(falseLbl) <<
+        Label(trueLbl) <<
+        Ldc(1) <<
+        Label(falseLbl)
+    case LessThan(l, r) =>
+      generateExpr(l, ch, s2v)
+      generateExpr(r, ch, s2v)
+
+      val trueLbl = ch.getFreshLabel("lessThan")
+      val falseLbl = ch.getFreshLabel("greaterOrEqual")
+      ch <<
+        If_ICmpLt(trueLbl) <<
+        Ldc(0) <<
+        Goto(falseLbl) <<
+        Label(trueLbl) <<
+        Ldc(1) <<
+        Label(falseLbl)
+    case Assign(id, expr) =>
+      generateExpr(expr, ch, s2v)
+      expr.getType match {
+        case TClass(_) | TString =>
+          ch << AStore(s2v(id.getSymbol.toString))
+        case TInt | TBoolean =>
+          ch << IStore(s2v(id.getSymbol.toString))
+        case x =>
+          sys.error(s"Expr was $x. Should not happen.")
+      }
+    case Not(expr: ExprTree) =>
+      generateExpr(expr, ch, s2v)
+
+      val trueLbl = ch.getFreshLabel("equal")
+      val falseLbl = ch.getFreshLabel("notEqual")
+      ch <<
+        IfEq(trueLbl) <<
+        Ldc(0) <<
+        Goto(falseLbl) <<
+        Label(trueLbl) <<
+        Ldc(1) <<
+        Label(falseLbl)
+    case And(l, r) =>
+      val trueLbl = ch.getFreshLabel("true")
+      val falseLbl = ch.getFreshLabel("false")
+
+      generateExpr(l, ch, s2v)
+
+      ch <<
+        IfEq(falseLbl)
+
+      generateExpr(r, ch, s2v)
+
+      ch <<
+        IfEq(falseLbl) <<
+        Ldc(1) <<
+        Goto(trueLbl) <<
+        Label(falseLbl) <<
+        Ldc(0) <<
+        Label(trueLbl)
+    case Or(l, r) =>
+      val rightLbl = ch.getFreshLabel("right")
+      val trueLbl = ch.getFreshLabel("true")
+      val falseLbl = ch.getFreshLabel("false")
+
+      generateExpr(l, ch, s2v)
+
+      ch <<
+        IfEq(rightLbl) <<
+        Ldc(1) <<
+        Goto(trueLbl) <<
+        Label(rightLbl)
+
+      generateExpr(r, ch, s2v)
+
+      ch <<
+        IfEq(falseLbl) <<
+        Ldc(1) <<
+        Goto(trueLbl) <<
+        Label(falseLbl) <<
+        Ldc(0) <<
+        Label(trueLbl)
 //    case MethodCall(obj, meth, args) =>
-//
-//    case Identifier(value) =>
-//    case This() =>
-//    case Null() =>
+    case id @ Identifier(_) =>
+      id.getType match {
+        case TClass(_) | TString =>
+          ch << ALoad(s2v(id.getSymbol.toString))
+        case TInt | TBoolean =>
+          ch << ILoad(s2v(id.getSymbol.toString))
+        case x =>
+          sys.error(s"Expr was $x. Should not happen.")
+      }
+    case This() =>
+      ch << ALOAD_0 // TODO: TEST
+    case Null() =>
+      ch << ACONST_NULL // TODO: TEST
+    case If(expr, thn, els) =>
+      generateExpr(expr, ch, s2v)
+
+      val trueLbl = ch.getFreshLabel("true")
+      val falseLbl = ch.getFreshLabel("false")
+
+      ch <<
+        IfEq(falseLbl)
+
+      generateExpr(thn, ch, s2v)
+
+      ch <<
+        Goto(trueLbl) <<
+        Label(falseLbl)
+
+      if(els.isDefined) generateExpr(els.get, ch, s2v)
+
+      ch <<
+        Label(trueLbl)
+    case Block(exprs) =>
+      exprs.foreach(x => generateExpr(x, ch, s2v))
+      ch
 //    case New(tpe: Identifier) =>
-//    case Not(expr: ExprTree) =>
-//
-//    case Block(exprs) =>
-//    case If(expr, thn, els) =>
-//    case While(cond, body) =>
-//    case Assign(id, expr) =>
+    case While(cond, body) =>
+      val endLbl = ch.getFreshLabel("end")
+      val loopLbl = ch.getFreshLabel("loop")
+
+      ch <<
+        Label(loopLbl)
+
+      generateExpr(cond, ch, s2v)
+
+      ch <<
+        IfEq(endLbl)
+
+      generateExpr(body, ch, s2v)
+
+      ch <<
+        Goto(loopLbl) <<
+        Label(endLbl)
   }
 
   private def generateMainClassFile(srcFile: String, main: MainDecl, dir: String): Unit = {
     val parentDir = if (dir.isEmpty) "./" else dir
     val classFile = new ClassFile(main.obj.value, None)
     classFile.setSourceFile(srcFile)
-
     classFile.addDefaultConstructor.codeHandler
 
     // Code handler for main
     val mainCH = classFile.addMainMethod.codeHandler
 
+    val symbolsToVars = scala.collection.mutable.Map[String, Int]()
+
     // Vars
-    main.vars.foreach(x => generateVarDecl(x, mainCH))
+    main.vars.foreach(x => generateVarDecl(x, mainCH, symbolsToVars))
 
     // Exprs
-    main.exprs.foreach(x => generateExpr(x, mainCH))
+    main.exprs.foreach(x => generateExpr(x, mainCH, symbolsToVars))
 
     // Return
     mainCH << RETURN
 
     // Generate
-
     mainCH.print
     mainCH.freeze
     classFile.writeToFile(s"$parentDir${classFile.className}.class")

@@ -126,6 +126,7 @@ object TypeChecking extends Phase[Program, Program] {
           body.setType(bodyTpe)
           bodyTpe
         case Assign(id, e) =>
+          Enforce.notUnit(e)
           id.getSymbol match {
             case s : VariableSymbol =>
             // TODO: Disallow assignment to anything other than a variable (Maybe already done)
@@ -216,7 +217,10 @@ object TypeChecking extends Phase[Program, Program] {
     }
 
     def tcVarDecl(vd: VarDecl, expected: Type*): Type = vd match {
-      case VarDecl(tpe, _, expr) => tcExpr(expr, TUntyped::typeTreeToTyped(tpe): _*) // Can be null
+      case VarDecl(tpe, _, expr) =>
+        Enforce.notUnit(vd.tpe)
+        tpe.setType(typeTreeToTyped(tpe).head)
+        tcExpr(expr, typeTreeToTyped(tpe): _*) // Can be null
     }
 
     prog.main.vars.foreach(v => tcVarDecl(v))

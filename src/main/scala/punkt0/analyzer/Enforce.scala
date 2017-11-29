@@ -1,10 +1,17 @@
 package punkt0.analyzer
 
-import punkt0.Reporter
+import punkt0.{Positioned, Reporter}
 import punkt0.analyzer.Symbols.{ClassSymbol, MethodSymbol, Symbol, Symbolic, VariableSymbol}
+import punkt0.analyzer.Types._
 import punkt0.ast.Trees._
 
 object Enforce {
+  def notUnit(v: Typed with Positioned) : Unit = v.getType match {
+    case TUnit =>
+      Reporter.error(s"Variable $v cannot have type Unit")
+    case _ => Unit
+  }
+
   def varUniqueInClassHierarchy(v: VarDecl, scope: Symbolic[_]): Unit = {
     val scopeSymbol = scope.getSymbol
     val parent = scopeSymbol match {

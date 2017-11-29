@@ -61,6 +61,7 @@ object Types {
     override def toString = "Boolean"
   }
 
+  // TODO: Unit, concrete type illegal
   case class TClass(classSymbol: ClassSymbol) extends Type {
     override def isSubTypeOf(tpe: Type): Boolean = tpe match {
       case TAnyRef(_) => true
@@ -83,6 +84,7 @@ object Types {
     override def toString: String = classSymbol.name
   }
 
+  // TODO: Check if making class AnyRef in code is illegal
   // special object to implement the fact that all objects are its subclasses
   val anyRef = TAnyRef(new ClassSymbol("AnyRef"))
   val appRef = TAnyRef(new ClassSymbol("App"))
