@@ -62,9 +62,15 @@ object Enforce {
     search
   }
 
-  def classUnique(className: String, classes: Map[String, Symbols.ClassSymbol]): Unit = {
-    classes.get(className) match {
-      case Some(x) => Reporter.error(s"'$className' is defined more than once. First definition at ${x.posString}", x)
+  def classUnique(c: ClassDecl, classes: Map[String, Symbols.ClassSymbol]): Unit = {
+    reservedClassNames.find(x => x.classSymbol.name == c.id.value) match {
+      case Some(x) =>
+        Reporter.error(s"'${x.classSymbol.name}' is a reserved class name.", c)
+        return
+      case None => Unit
+    }
+    classes.get(c.id.value) match {
+      case Some(x) => Reporter.error(s"'${c.id.value}' is defined more than once. First definition at ${x.posString}", c)
       case None => Unit
     }
   }

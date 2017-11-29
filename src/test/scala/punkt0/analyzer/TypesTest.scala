@@ -49,6 +49,4 @@ class TypesTest extends FlatSpec with Matchers {
     types(4).isSubTypeOf(cso.getType) should equal (false)
     cso.getType.isSubTypeOf(types(4)) should equal (false)
   }
-
-  //TODO: TEst anyref
 }

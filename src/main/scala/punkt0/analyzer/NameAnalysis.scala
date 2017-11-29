@@ -10,6 +10,9 @@ object NameAnalysis extends Phase[Program, Program] {
   val globalScope = new GlobalScope()
 
   def run(prog: Program)(ctx: Context): Program = {
+    // Step 0: Add hardcoded class names to the global scope
+    addHardcodedSymbols()
+
     // Step 1: Collect symbols in declarations
     collectSymbols(prog)
 
@@ -31,6 +34,11 @@ object NameAnalysis extends Phase[Program, Program] {
 //    debug()
 
     prog
+  }
+
+  private def addHardcodedSymbols(): Unit = {
+    globalScope.classes += anyRef.classSymbol.name -> anyRef.classSymbol
+    globalScope.classes += appRef.classSymbol.name -> appRef.classSymbol
   }
 
   private def addClassHierarchy(prog: Program): Unit = {
@@ -143,7 +151,7 @@ object NameAnalysis extends Phase[Program, Program] {
       // Classes
       c.setSymbol(classSymbol)
       c.id.setSymbol(classSymbol)
-      Enforce.classUnique(className, globalScope.classes)
+      Enforce.classUnique(c, globalScope.classes)
       globalScope.classes += className -> classSymbol
     })
 

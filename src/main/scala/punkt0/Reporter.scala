@@ -2,6 +2,8 @@ package punkt0
 
 import java.io.File
 
+import punkt0.analyzer.Types
+
 import scala.io.Source
 
 object Reporter {

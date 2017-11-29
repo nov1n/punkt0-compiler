@@ -61,10 +61,9 @@ object Types {
     override def toString = "Boolean"
   }
 
-  // TODO: Unit, concrete type illegal
   case class TClass(classSymbol: ClassSymbol) extends Type {
     override def isSubTypeOf(tpe: Type): Boolean = tpe match {
-      case TAnyRef(_) => true
+      case `anyRef` => true
       case TClass(`classSymbol`) => true
       case TClass(_) if classSymbol.parent.isDefined =>
         val parentType = classSymbol.parent.get.getType
@@ -76,16 +75,8 @@ object Types {
     }
   }
 
-  case class TAnyRef(classSymbol: ClassSymbol) extends Type {
-    override def isSubTypeOf(tpe: Type): Boolean = tpe match {
-      case TAnyRef(`classSymbol`) => true
-      case _ => false
-    }
-    override def toString: String = classSymbol.name
-  }
-
-  // TODO: Check if making class AnyRef in code is illegal
   // special object to implement the fact that all objects are its subclasses
-  val anyRef = TAnyRef(new ClassSymbol("AnyRef"))
-  val appRef = TAnyRef(new ClassSymbol("App"))
+  val anyRef = TClass(new ClassSymbol("AnyRef"))
+  val appRef = TClass(new ClassSymbol("App"))
+  val reservedClassNames = Set(anyRef, appRef)
 }

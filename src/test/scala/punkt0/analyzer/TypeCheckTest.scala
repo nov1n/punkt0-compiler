@@ -68,11 +68,11 @@ class TypeCheckTest extends FlatSpec with Matchers{
     TypeChecking.calcLeastUpperBound(str.getType, clas.getType) should equal (anyRef)
     TypeChecking.calcLeastUpperBound(int.getType, clas.getType) should equal (anyRef)
     TypeChecking.calcLeastUpperBound(bool.getType, clas.getType) should equal (anyRef)
-    TypeChecking.calcLeastUpperBound(unit.getType, clas.getType) should equal (anyRef)
+    TypeChecking.calcLeastUpperBound(unit.getType, clas.getType) should equal (TError)
     TypeChecking.calcLeastUpperBound(clas.getType, bool.getType) should equal (anyRef)
-    TypeChecking.calcLeastUpperBound(clas.getType, unit.getType) should equal (anyRef)
+    TypeChecking.calcLeastUpperBound(clas.getType, unit.getType) should equal (TError)
     TypeChecking.calcLeastUpperBound(str.getType, int.getType) should equal (anyRef)
-    TypeChecking.calcLeastUpperBound(bool.getType, unit.getType) should equal (anyRef)
+    TypeChecking.calcLeastUpperBound(bool.getType, unit.getType) should equal (TError)
 
   }
 }

@@ -4,7 +4,6 @@ package analyzer
 import ast.Trees._
 import Types._
 import punkt0.analyzer.Symbols.VariableSymbol
-//TODO: Anyref
 
 object TypeChecking extends Phase[Program, Program] {
 
@@ -23,6 +22,8 @@ object TypeChecking extends Phase[Program, Program] {
       }
       cs1.getType
     case (x, y) if x == y => x
+    case (TUnit, _) | (_, TUnit) =>
+      TError
     case (_, _) => anyRef
   }
 
@@ -113,7 +114,6 @@ object TypeChecking extends Phase[Program, Program] {
             case TString => tcExpr(r,TString)
             case TUnit => tcExpr(r,TUnit)
             case TClass(cs) => tcExpr(r, cs.getType)
-            case TAnyRef(cs) => tcExpr(r, cs.getType)
             case TError | TUntyped => tcExpr(r)
           }
           l.setType(lTpe)
@@ -194,7 +194,9 @@ object TypeChecking extends Phase[Program, Program] {
             case Some(x) =>
               val elsType = tcExpr(x)
               x.setType(elsType)
-              calcLeastUpperBound(thnType, elsType)
+              val bound = calcLeastUpperBound(thnType, elsType)
+              if(bound == TError) Reporter.error(s"Types $thnType and $elsType are incompatible", thn)
+              bound
             case None => thnType
           }
       }
