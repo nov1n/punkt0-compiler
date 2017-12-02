@@ -73,8 +73,6 @@ object CodeGeneration extends Phase[Program, Unit] {
         x+1
       })
 
-      mt.args.foreach(x => symbolsToVars += x.getSymbol.toString -> 1)
-
       // Vars
       mt.vars.foreach(x => generateVarDecl(x, ch, symbolsToVars))
 

@@ -4,8 +4,8 @@ class Bar {
 
   def bar(a: Int, b : Int, c: Int) : Int = {
     println(a);
-    //println(b);
-    //println(foo);
+    println(b);
+    println(foo);
     c
   }
 }
@@ -74,7 +74,6 @@ object MyMain extends App {
   //if(true == false) {
   //  println(true || false)
   //};
-  var a : Boolean = true;
   println(d.bar(1,2,3))
   //println(a + 3)
   //println(5)
