@@ -1,43 +1,81 @@
-class Foo {
-  def bar() : Unit = {
-    println("Hey")
+class Bar {
+
+  var foo : Int = 5;
+
+  def bar(a: Int, b : Int, c: Int) : Int = {
+    println(a);
+    //println(b);
+    //println(foo);
+    c
   }
 }
 
 object MyMain extends App {
-  var a : Boolean = true;
-  //var d : Foo = new Foo();
-  var b : Int = 20;
-  var c : String = "hurr";
-  c = "true";
-  b = 10;
-  println(a);
-  println(!!a);
-  println(c);
-  println(b);
-  while(b < 5000) {
-    b = b * 2;
-    println(b)
-  };
-  println(b);
-  if(b < 10)
-    println("TRUE!!!")
-  else
-    println("FALSE!!!");
-  println(a || true);
-  println(true || 1/0 == 5);
-  println(a && true);
-  println(true && a);
+  //var a : Boolean = true;
+  //var b : Int = 20;
+  //var c : String = "hurr";
+  //c = "true";
+  //b = 10;
+  //println(a);
+  //println(!!a);
+  //println(c);
+  //println(b);
+  //while(b < 5000) {
+    //b = b * 2;
+    //println(b)
+  //};
+  //println(b);
+  //if(b < 10)
+    //println("TRUE!!!")
+  //else
+    //println("FALSE!!!");
+  //println(a || true);
+  //println(true || 1/0 == 5);
+  //println(a && true);
+  //println(true && a);
   //println(true && 1/0 == 5);
-  println(false && 1/0 == 5);
-  println(true && true);
-  println(true && 1 < 5)
+  //println(false && 1/0 == 5);
+  //println(true && true);
+  //println(true && 1 < 5)
   //println("hello: " + "hello"); // TODO: Fix this
   //println(true);
   //println(5 + 5);
   //println(5 * 5);
   //println(5 / 5);
   //println(5 < 5);
-  //println(5 == 6)
   //this
+  //var b : Bar = null;
+  //var e : Int = 5;
+  //e = d.bar(5, 6+3, 3000);
+  //println("HEY");
+  //println(d.bar(1, 2, 3))
+  //var a : String = "Hello";
+  //println(a);
+  //a = a + ", World!";
+  //println(a);
+  //a = a + " This" + " is " + "fun!";
+  //println(a);
+
+  //println(d.bar(1,2,3)) // TODO: Always prints 1, expected 3
+  //println(5 + "heu" + "Hurr" + "Hurr" + 5 + 7);
+  //var b : Boolean = true;
+  //b = 5 < 7 || 3 < 4 && false;
+  //println(5+"hey")
+  //println(5+5)
+  //b = {
+  //  println(5);
+  //  //"hello"; // TODO: This nasty edge case leaves a variable on the stack
+  //  true
+  //};
+  var d : Bar = new Bar();
+  //var e : Bar = new Bar();
+  //var tg : String = "hello";
+  //var ke : String = "hello";
+  //if(true == false) {
+  //  println(true || false)
+  //};
+  var a : Boolean = true;
+  println(d.bar(1,2,3))
+  //println(a + 3)
+  //println(5)
 }

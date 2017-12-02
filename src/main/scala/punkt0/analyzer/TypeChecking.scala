@@ -7,7 +7,7 @@ import punkt0.analyzer.Symbols.VariableSymbol
 
 object TypeChecking extends Phase[Program, Program] {
 
-  val _printTypes: Boolean = false
+  val _printTypes: Boolean = true
 
   def calcLeastUpperBound(t1: Type, t2: Type): Type = (t1, t2) match {
     case (TClass(cs1), TClass(cs2)) if cs1.getType.isSubTypeOf(cs2.getType) => cs2.getType // cs1 < cs2
@@ -40,31 +40,25 @@ object TypeChecking extends Phase[Program, Program] {
         case x @ This() => x.getSymbol.getType
         case x @ Identifier(_) => x.getSymbol.getType
         case New(i) => i.getType
-        case Not(e) =>
-          val tpe = tcExpr(e, TBoolean)
-          e.setType(tpe)
-          tpe
+        case Not(e) => tcExpr(e, TBoolean)
         case Println(e) =>
-          val tpe = tcExpr(e, TBoolean, TString, TInt)
-          e.setType(tpe)
+          tcExpr(e, TBoolean, TString, TInt)
           TUnit
         case Block(e) =>
           if(e.isEmpty) return TUnit
-          e.reverse.tail.map(x => x.setType(tcExpr(x)))
+          e.reverse.tail.map(x => tcExpr(x))
           val tpe = tcExpr(e.reverse.head, expected : _*) // TODO: Understand what it means to pass along expected
-          e.reverse.head.setType(tpe)
           tpe
         case And(l, r) =>
-          l.setType(tcExpr(l, TBoolean))
-          r.setType(tcExpr(r, TBoolean))
+          tcExpr(l, TBoolean)
+          tcExpr(r, TBoolean)
           TBoolean
         case Or(l, r) =>
-          l.setType(tcExpr(l, TBoolean))
-          r.setType(tcExpr(r, TBoolean))
+          tcExpr(l, TBoolean)
+          tcExpr(r, TBoolean)
           TBoolean
         case p @ Plus(l, r) =>
           val lTpe = tcExpr(l)
-          l.setType(lTpe)
            val rTpe = lTpe match {
             case TInt =>
               tcExpr(r, TInt, TString) match {
@@ -88,27 +82,26 @@ object TypeChecking extends Phase[Program, Program] {
               Reporter.error(s"Type error: cannot add to $lTpe", p)
               TError
           }
-          r.setType(rTpe)
           rTpe
         case Minus(l, r) =>
-          l.setType(tcExpr(l, TInt))
-          r.setType(tcExpr(r, TInt))
+          tcExpr(l, TInt)
+          tcExpr(r, TInt)
           TInt
         case Times(l, r) =>
-          l.setType(tcExpr(l, TInt))
-          r.setType(tcExpr(r, TInt))
+          tcExpr(l, TInt)
+          tcExpr(r, TInt)
           TInt
         case Div(l, r) =>
-          l.setType(tcExpr(l, TInt))
-          r.setType(tcExpr(r, TInt))
+          tcExpr(l, TInt)
+          tcExpr(r, TInt)
           TInt
         case LessThan(l, r) =>
-          l.setType(tcExpr(l, TInt))
-          r.setType(tcExpr(r, TInt))
+          tcExpr(l, TInt)
+          tcExpr(r, TInt)
           TBoolean
         case Equals(l, r) =>
           val lTpe = tcExpr(l)
-          val rTpe = lTpe match {
+          lTpe match {
             case TInt => tcExpr(r, TInt)
             case TBoolean => tcExpr(r,TBoolean)
             case TString => tcExpr(r,TString)
@@ -116,15 +109,10 @@ object TypeChecking extends Phase[Program, Program] {
             case TClass(cs) => tcExpr(r, cs.getType)
             case TError | TUntyped => tcExpr(r)
           }
-          l.setType(lTpe)
-          r.setType(rTpe)
           TBoolean
         case While(cond, body) =>
-          val condTpe = tcExpr(cond, TBoolean)
-          cond.setType(condTpe)
-          val bodyTpe = tcExpr(body, TUnit)
-          body.setType(bodyTpe)
-          bodyTpe
+          tcExpr(cond, TBoolean)
+          tcExpr(body, TUnit)
         case Assign(id, e) =>
           Enforce.notUnit(e)
           id.getSymbol match {
@@ -138,16 +126,14 @@ object TypeChecking extends Phase[Program, Program] {
               Reporter.error(s"Type error: cannot assign to '${id.getType}'.", id)
               return TUnit
           }
-          val eTpe = tcExpr(e, id.getType)
-          e.setType(eTpe)
+          tcExpr(e, id.getType)
           TUnit
         case MethodCall(obj, meth, args) =>
           // Find out what object the method is called on
           val objType = tcExpr(obj)
-          obj.setType(objType)
 
           // Evaluate all arguments
-          args.foreach(a => a.setType(tcExpr(a)))
+          args.foreach(a => tcExpr(a))
 
           // Return the return type of the method
           val methTpe = objType match {
@@ -186,14 +172,11 @@ object TypeChecking extends Phase[Program, Program] {
           meth.setType(methTpe)
           methTpe
         case If(ifexp, thn, els) =>
-          val ifTpe = tcExpr(ifexp, TBoolean)
-          ifexp.setType(ifTpe)
+          tcExpr(ifexp, TBoolean)
           val thnType = tcExpr(thn)
-          thn.setType(thnType)
           els match {
             case Some(x) =>
               val elsType = tcExpr(x)
-              x.setType(elsType)
               val bound = calcLeastUpperBound(thnType, elsType)
               if(bound == TError) Reporter.error(s"Types $thnType and $elsType are incompatible", thn)
               bound
@@ -225,14 +208,17 @@ object TypeChecking extends Phase[Program, Program] {
         tcExpr(expr, typeTreeToTyped(tpe): _*) // Can be null
     }
 
-    prog.main.vars.foreach(v => tcVarDecl(v))
-    prog.main.exprs.foreach(e => e.setType(tcExpr(e)))
+    prog.main.vars.foreach(tcVarDecl(_))
+    prog.main.exprs.foreach(tcExpr(_))
 
-    prog.classes.foreach(c => c.vars.foreach(v => tcVarDecl(v)))
+    prog.classes.foreach(c => c.vars.foreach(tcVarDecl(_)))
     prog.classes.foreach(c => c.methods.foreach(m => {
-      m.vars.foreach(v => tcVarDecl(v))
-      m.exprs.foreach(e => e.setType(tcExpr(e)))
-      m.retExpr.setType(tcExpr(m.retExpr, typeTreeToTyped(m.retType): _*))
+      m.args.foreach(a => a.tpe.setType(typeTreeToTyped(a.tpe).head))
+      m.vars.foreach(tcVarDecl(_))
+      m.exprs.foreach(tcExpr(_))
+      val retType = tcExpr(m.retExpr, typeTreeToTyped(m.retType): _*)
+      m.retExpr.setType(retType)
+      m.retType.setType(retType)
     }))
 
     prog
@@ -243,7 +229,7 @@ object TypeChecking extends Phase[Program, Program] {
       case BooleanType() => List(TBoolean)
       case IntType() => List(TInt)
       case UnitType() => List(TUnit)
-      case StringType() => List(TString)
+      case StringType() => List(TString, TUntyped) // TODO: we treat string as primitive type so I don't think this should be allowed but in Calendar.p0:79 we see an example where this happens
       case t => List(t.getType, TUntyped)
     }
   }

@@ -1,20 +1,35 @@
-public class Main {
-    public static void main(String[] args) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(true);
-        String str = sb.toString();
-        System.out.println(str);
-        Foo foo = new Foo();
-        System.out.println(foo);
-    }
-}
+//public class Main {
+//    public Main() {
+//    }
+//
+//    public static void main(String[] var0) {
+//        Foo var1 = new Foo();
+//        var1.bar(5);
+//        System.out.println(var1.a);
+//    }
+//}
+//
+//class Foo {
+//    int a = 5;
+//
+//    public boolean bar(int a) {
+//        StringBuilder var1 = new StringBuilder();
+//        var1.append(a);
+//        String var2 = var1.toString();
+//        System.out.println(var2);
+//        return true;
+//    }
+//}
 
-class Foo {
-    Foo() {
-        Foo foo = null;
-        System.out.println(foo);
-        String s = "hey there!";
-        System.out.println(s);
-    }
 
+class Bar {
+
+    int foo = 5;
+
+    int bar(int a, int b, int c) {
+        System.out.println(a);
+        System.out.println(b);
+        System.out.println(foo);
+        return c;
+    }
 }
