@@ -3,10 +3,15 @@ class Bar {
   var foo : Int = 5;
 
   def bar(a: Int, b : Int, c: Int) : Int = {
-    println(a);
-    println(b);
+    //println(a);
+    //println(b);
+    foo = 7;
     println(foo);
     c
+  }
+
+  def newbar() : Bar = {
+    new Bar()
   }
 }
 
@@ -67,14 +72,14 @@ object MyMain extends App {
   //  //"hello"; // TODO: This nasty edge case leaves a variable on the stack
   //  true
   //};
-  var d : Bar = new Bar();
   //var e : Bar = new Bar();
   //var tg : String = "hello";
   //var ke : String = "hello";
   //if(true == false) {
   //  println(true || false)
   //};
-  println(d.bar(1,2,3))
+  var b : Bar = new Bar();
+  println(b.newbar().bar(1,2,3))
   //println(a + 3)
   //println(5)
 }

@@ -7,6 +7,7 @@ import cafebabe._
 import AbstractByteCodes.{New => NewInst, _}
 import ByteCodes._
 import punkt0.analyzer.Symbols.MethodSymbol
+import scala.collection.mutable.{Map => MuMap}
 
 object CodeGeneration extends Phase[Program, Unit] {
 
@@ -15,21 +16,42 @@ object CodeGeneration extends Phase[Program, Unit] {
     /** Writes the proper .class file in a given directory. An empty string for dir is equivalent to "./". */
     def generateClassFile(sourceName: String, ct: ClassDecl, dir: String): Unit = {
       val parentDir = if (dir.isEmpty) "./" else dir
-      val parentClass = if (ct.parent.isDefined) Some(ct.parent.get.value) else None
+      val parentClass = ct.getSymbol.parent match {
+        case Some(x) => x.name
+        case None => "java/lang/Object"
+      }
 
-      val classFile = new cafebabe.ClassFile(ct.id.value, parentClass)
+      val classFile = new cafebabe.ClassFile(ct.id.value, Some(parentClass))
       classFile.setSourceFile(sourceName)
-      println(s"CLASS ${ct.id.value}")
 
-      classFile.addDefaultConstructor
+      val constructor = classFile.addConstructor(Nil).codeHandler
 
+      // Create constructor
+      val symbolsToRefs = MuMap[String, SymbolReference]()
+      constructor <<
+      ALOAD_0 <<
+      InvokeSpecial(parentClass, "<init>", "()V") // Call parent constructor
+
+      // Initialize fields
       ct.vars.foreach(x => {
-        classFile.addField(toJVMType(x.tpe.getType), x.id.value)
+        val fieldName = x.getSymbol.toString
+        val className = ct.id.value
+        classFile.addField(toJVMType(x.tpe.getType), fieldName)
+        constructor << ALOAD_0
+        generateExpr(x.expr, constructor, MuMap[String, SymbolReference]())
+        constructor << PutField(className, fieldName, toJVMType(x.getSymbol.getType))
+        symbolsToRefs += fieldName -> Field(ct.id.value)
       })
+      constructor << RETURN
+
+      println(s"\nCLASS ${ct.id.value}")
+      println(s"METHOD ${ct.id.value}()")
+      constructor.freeze
+      constructor.print
 
       ct.methods.foreach(x => {
         val mh = classFile.addMethod(toJVMType(x.retType.getType), x.id.value, x.args.map(y => toJVMType(y.tpe.getType)))
-        generateMethodCode(mh.codeHandler, x)
+        generateMethodCode(mh.codeHandler, x, symbolsToRefs)
       })
       classFile.writeToFile(s"$parentDir${ct.id.value}.class")
     }
@@ -43,7 +65,7 @@ object CodeGeneration extends Phase[Program, Unit] {
       // Code handler for main
       val mainCH = classFile.addMainMethod.codeHandler
 
-      val symbolsToVars = scala.collection.mutable.Map[String, Int]()
+      val symbolsToVars = MuMap[String, SymbolReference]()
 
       // Vars
       main.vars.foreach(x => generateVarDecl(x, mainCH, symbolsToVars))
@@ -64,23 +86,21 @@ object CodeGeneration extends Phase[Program, Unit] {
 
     // a mapping from variable symbols to positions in the local variables
     // of the stack frame
-    def generateMethodCode(ch: CodeHandler, mt: MethodDecl): Unit = {
-      val symbolsToVars = scala.collection.mutable.Map[String, Int]()
-
+    def generateMethodCode(ch: CodeHandler, mt: MethodDecl, symbolsToRefs : MuMap[String, SymbolReference]): Unit = {
       // Allocate args to slots 1...n
       mt.args.foldLeft(1)((x, y) => {
-        symbolsToVars += y.getSymbol.toString -> x
+        symbolsToRefs += y.getSymbol.toString -> Var(x)
         x+1
       })
 
       // Vars
-      mt.vars.foreach(x => generateVarDecl(x, ch, symbolsToVars))
+      mt.vars.foreach(x => generateVarDecl(x, ch, symbolsToRefs))
 
       // Exprs
-      mt.exprs.foreach(x => generateExpr(x, ch, symbolsToVars))
+      mt.exprs.foreach(x => generateExpr(x, ch, symbolsToRefs))
 
       // Retexpr
-      generateExpr(mt.retExpr, ch, symbolsToVars)
+      generateExpr(mt.retExpr, ch, symbolsToRefs)
 
       // Return
       val ret = mt.retType.getType match {
@@ -115,11 +135,11 @@ object CodeGeneration extends Phase[Program, Unit] {
     generateMainClassFile(sourceName, prog.main, outDir)
   }
 
-  def generateVarDecl(v: VarDecl, ch: CodeHandler, symbolsToSlots : scala.collection.mutable.Map[String, Int]): CodeHandler = {
+  def generateVarDecl(v: VarDecl, ch: CodeHandler, symbolsToSlots : MuMap[String, SymbolReference]): CodeHandler = {
     generateExpr(v.expr, ch, symbolsToSlots)
 
     val var1 = ch.getFreshVar
-    symbolsToSlots += v.getSymbol.toString -> var1
+    symbolsToSlots += v.getSymbol.toString -> Var(var1)
     v.tpe.getType match {
       case TClass(_) | TString =>
         ch << AStore(var1)
@@ -135,7 +155,7 @@ object CodeGeneration extends Phase[Program, Unit] {
     // E.g. `void foo(int a, boolean b)` ==> (IZ)V
   }
 
-  def generateExpr(e: ExprTree, ch: CodeHandler, symbolsToSlots : scala.collection.mutable.Map[String, Int]): CodeHandler = e match {
+  def generateExpr(e: ExprTree, ch: CodeHandler, symbolsToRefs : MuMap[String, SymbolReference]): CodeHandler = e match {
     case Println(en) =>
       val tpe = toJVMType(en.getType)
 
@@ -149,7 +169,7 @@ object CodeGeneration extends Phase[Program, Unit] {
         AStore(var1) <<
         ALoad(var1)
 
-      generateExpr(en, ch, symbolsToSlots) <<
+      generateExpr(en, ch, symbolsToRefs) <<
         InvokeVirtual("java/lang/StringBuilder", "append", s"($tpe)Ljava/lang/StringBuilder;") <<
         POP <<
         ALoad(var1) <<
@@ -169,8 +189,8 @@ object CodeGeneration extends Phase[Program, Unit] {
     case Plus(l, r) =>
       (l.getType, r.getType) match {
         case (TInt, TInt) =>
-          generateExpr(l, ch, symbolsToSlots)
-          generateExpr(r, ch, symbolsToSlots)
+          generateExpr(l, ch, symbolsToRefs)
+          generateExpr(r, ch, symbolsToRefs)
           ch << IADD
         case (_, _) =>
           val var1 = ch.getFreshVar
@@ -181,7 +201,7 @@ object CodeGeneration extends Phase[Program, Unit] {
             InvokeSpecial("java/lang/StringBuilder", "<init>", "()V") <<
             AStore(var1) <<
             ALoad(var1)
-          generateExpr(l, ch, symbolsToSlots)
+          generateExpr(l, ch, symbolsToRefs)
 
           // Append left
           ch <<
@@ -190,7 +210,7 @@ object CodeGeneration extends Phase[Program, Unit] {
             ALoad(var1)
 
           // Append right
-          generateExpr(r, ch, symbolsToSlots)
+          generateExpr(r, ch, symbolsToRefs)
           ch <<
             InvokeVirtual("java/lang/StringBuilder", "append", s"(${toJVMType(r.getType)})Ljava/lang/StringBuilder;") <<
             POP <<
@@ -199,20 +219,20 @@ object CodeGeneration extends Phase[Program, Unit] {
             InvokeVirtual("java/lang/StringBuilder", "toString", "()Ljava/lang/String;")
       }
     case Minus(l, r) =>
-      generateExpr(l, ch, symbolsToSlots)
-      generateExpr(r, ch, symbolsToSlots)
+      generateExpr(l, ch, symbolsToRefs)
+      generateExpr(r, ch, symbolsToRefs)
       ch << ISUB
     case Times(l, r) =>
-      generateExpr(l, ch, symbolsToSlots)
-      generateExpr(r, ch, symbolsToSlots)
+      generateExpr(l, ch, symbolsToRefs)
+      generateExpr(r, ch, symbolsToRefs)
       ch << IMUL
     case Div(l, r) =>
-      generateExpr(l, ch, symbolsToSlots)
-      generateExpr(r, ch, symbolsToSlots)
+      generateExpr(l, ch, symbolsToRefs)
+      generateExpr(r, ch, symbolsToRefs)
       ch << IDIV
     case Equals(l, r) =>
-      generateExpr(l, ch, symbolsToSlots)
-      generateExpr(r, ch, symbolsToSlots)
+      generateExpr(l, ch, symbolsToRefs)
+      generateExpr(r, ch, symbolsToRefs)
 
       val trueLbl = ch.getFreshLabel("equal")
       val falseLbl = ch.getFreshLabel("notEqual")
@@ -232,8 +252,8 @@ object CodeGeneration extends Phase[Program, Unit] {
         Ldc(1) <<
         Label(falseLbl)
     case LessThan(l, r) =>
-      generateExpr(l, ch, symbolsToSlots)
-      generateExpr(r, ch, symbolsToSlots)
+      generateExpr(l, ch, symbolsToRefs)
+      generateExpr(r, ch, symbolsToRefs)
 
       val trueLbl = ch.getFreshLabel("lessThan")
       val falseLbl = ch.getFreshLabel("greaterOrEqual")
@@ -245,17 +265,31 @@ object CodeGeneration extends Phase[Program, Unit] {
         Ldc(1) <<
         Label(falseLbl)
     case Assign(id, expr) =>
-      generateExpr(expr, ch, symbolsToSlots)
-      expr.getType match {
-        case TClass(_) | TString => // TODO: fall back on putfield
-          ch << AStore(symbolsToSlots(id.getSymbol.toString))
-        case TInt | TBoolean =>
-          ch << IStore(symbolsToSlots(id.getSymbol.toString))
-        case x =>
-          sys.error(s"Expr was $x. Should not happen.")
+      val name = id.getSymbol.toString
+
+      // (A,I)Store or PUTFIELD
+      symbolsToRefs.get(name) match {
+        case Some(x) => x match {
+          case Var(slot) =>
+            expr.getType match {
+              case TClass(_) | TString =>
+                generateExpr(expr, ch, symbolsToRefs)
+                ch << AStore(slot)
+              case TInt | TBoolean =>
+                generateExpr(expr, ch, symbolsToRefs)
+                ch << IStore(slot)
+              case y =>
+                sys.error(s"Expr was $y. Should not happen.")
+            }
+          case Field(clas) =>
+            ch << ALOAD_0
+            generateExpr(expr, ch, symbolsToRefs)
+            ch << PutField(clas, name, toJVMType(id.getType))
+        }
+        case None => sys.error(s"Assigning to uninitialized variable ${id.value}.")
       }
     case Not(expr: ExprTree) =>
-      generateExpr(expr, ch, symbolsToSlots)
+      generateExpr(expr, ch, symbolsToRefs)
 
       val trueLbl = ch.getFreshLabel("equal")
       val falseLbl = ch.getFreshLabel("notEqual")
@@ -270,12 +304,12 @@ object CodeGeneration extends Phase[Program, Unit] {
       val trueLbl = ch.getFreshLabel("true")
       val falseLbl = ch.getFreshLabel("false")
 
-      generateExpr(l, ch, symbolsToSlots)
+      generateExpr(l, ch, symbolsToRefs)
 
       ch <<
         IfEq(falseLbl)
 
-      generateExpr(r, ch, symbolsToSlots)
+      generateExpr(r, ch, symbolsToRefs)
 
       ch <<
         IfEq(falseLbl) <<
@@ -289,7 +323,7 @@ object CodeGeneration extends Phase[Program, Unit] {
       val trueLbl = ch.getFreshLabel("true")
       val falseLbl = ch.getFreshLabel("false")
 
-      generateExpr(l, ch, symbolsToSlots)
+      generateExpr(l, ch, symbolsToRefs)
 
       ch <<
         IfEq(rightLbl) <<
@@ -297,7 +331,7 @@ object CodeGeneration extends Phase[Program, Unit] {
         Goto(trueLbl) <<
         Label(rightLbl)
 
-      generateExpr(r, ch, symbolsToSlots)
+      generateExpr(r, ch, symbolsToRefs)
 
       ch <<
         IfEq(falseLbl) <<
@@ -313,29 +347,38 @@ object CodeGeneration extends Phase[Program, Unit] {
         InvokeSpecial(tpe.value, "<init>", "()V")
 
     case m @ MethodCall(obj, meth, args) =>
-      generateExpr(obj, ch, symbolsToSlots)
+      generateExpr(obj, ch, symbolsToRefs)
 
-      args.foreach(x => generateExpr(x, ch, symbolsToSlots))
+      args.foreach(x => generateExpr(x, ch, symbolsToRefs))
       ch <<
         InvokeVirtual(meth.getSymbol.asInstanceOf[MethodSymbol].classSymbol.name, meth.value, createMethodSignature(m))
     case id @ Identifier(_) =>
       id.getType match {
         case TClass(_) | TString =>
           val name = id.getSymbol.toString
-          symbolsToSlots.get(name) match {
-            case Some(x) => ch << ALoad(x)
-            // Fallback on field if not found in method scope
-            case None =>
-              ch << GetField("Bar", name, toJVMType(id.getType))
-              // TODO: Find a way to figure out the class here as first arg to getfield
+          symbolsToRefs.get(name) match {
+            case Some(x) => x match {
+              case Var(slot) =>
+                ch << ALoad(slot)
+            case Field(clas) =>
+              // Fallback on field if not found in method scope
+              ch <<
+                ALOAD_0 <<
+                GetField(clas, name, toJVMType(id.getType))
+            }
+            case None => sys.error(s"No variable or field with name ${id.value} found.")
           }
         case TInt | TBoolean =>
           val name = id.getSymbol.toString
-          symbolsToSlots.get(name) match {
-            case Some(x) => ch << ILoad(x)
-            // Fallback on field if not found in method scope
-            case None => ch <<
-              GetField("Bar", name, toJVMType(id.getType))
+          symbolsToRefs.get(name) match {
+            case Some(x) => x match {
+              case Var(slot) =>
+                ch << ILoad(slot)
+              case Field(clas) => ch <<
+                ALOAD_0 <<
+                GetField(clas, name, toJVMType(id.getType))
+            }
+            case None => sys.error(s"No variable or field with name $name found.")
           }
         case x =>
           sys.error(s"Expr was $x. Should not happen.")
@@ -345,7 +388,7 @@ object CodeGeneration extends Phase[Program, Unit] {
     case Null() =>
       ch << ACONST_NULL
     case If(expr, thn, els) =>
-      generateExpr(expr, ch, symbolsToSlots)
+      generateExpr(expr, ch, symbolsToRefs)
 
       val trueLbl = ch.getFreshLabel("true")
       val falseLbl = ch.getFreshLabel("false")
@@ -353,18 +396,18 @@ object CodeGeneration extends Phase[Program, Unit] {
       ch <<
         IfEq(falseLbl)
 
-      generateExpr(thn, ch, symbolsToSlots)
+      generateExpr(thn, ch, symbolsToRefs)
 
       ch <<
         Goto(trueLbl) <<
         Label(falseLbl)
 
-      if(els.isDefined) generateExpr(els.get, ch, symbolsToSlots)
+      if(els.isDefined) generateExpr(els.get, ch, symbolsToRefs)
 
       ch <<
         Label(trueLbl)
     case Block(exprs) =>
-      exprs.foreach(x => generateExpr(x, ch, symbolsToSlots))
+      exprs.foreach(x => generateExpr(x, ch, symbolsToRefs))
       ch
     case While(cond, body) =>
       val endLbl = ch.getFreshLabel("end")
@@ -373,12 +416,12 @@ object CodeGeneration extends Phase[Program, Unit] {
       ch <<
         Label(loopLbl)
 
-      generateExpr(cond, ch, symbolsToSlots)
+      generateExpr(cond, ch, symbolsToRefs)
 
       ch <<
         IfEq(endLbl)
 
-      generateExpr(body, ch, symbolsToSlots)
+      generateExpr(body, ch, symbolsToRefs)
 
       ch <<
         Goto(loopLbl) <<
@@ -390,7 +433,11 @@ object CodeGeneration extends Phase[Program, Unit] {
     case TInt => "I"
     case TBoolean => "Z"
     case TString => "Ljava/lang/String;"
-    case TClass(x) => x.name
+    case TClass(x) => s"L${x.name};"
     case x => sys.error(s"Type $x shouldn't occur.")
   }
 }
+
+sealed trait SymbolReference
+case class Var(slot : Int) extends SymbolReference
+case class Field(clas: String) extends SymbolReference
