@@ -256,6 +256,10 @@ object CodeGeneration extends Phase[Program, Unit] {
           case TInt | TBoolean =>
             ch <<
               If_ICmpEq(trueLbl)
+          case TString =>
+            ch <<
+              InvokeVirtual("java/lang/String", "equals", "(Ljava/lang/Object;)Z") <<
+              IfNe(trueLbl)
           case _ =>
             ch <<
               If_ACmpEq(trueLbl)

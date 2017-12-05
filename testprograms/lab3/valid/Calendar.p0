@@ -1,5 +1,4 @@
 class CalendarImpl {
-    var a : String = null;
     var month_ : Int = 0;
     var year_ : Int = 0;
 

@@ -12,17 +12,23 @@ import punkt0.analyzer.{NameAnalysis, TypeChecking}
 import punkt0.ast.Parser
 import punkt0.code.CodeGeneration
 
+
 class CodegenTest extends FlatSpec with Matchers {
+  val generateReferenceFiles = true
   "All source files" should "generate valid bytecode" in {
     val d = new File("./testprograms/lab3/valid")
     val files = d.listFiles.filter(_.isFile).toList
-    files.filter(x => !x.getName.contains(".ast")).foreach(f => {
+    files.filter(x => {
+        x.getName.endsWith(".p0") &&
+        !x.getName.contains("Life")
+    }).foreach(f => {
       // Generate the classfiles
-      val folder = new File(s"./classfiles/${f.getName}")
+      val dir = new File(s"./classfiles/${f.getName}")
       val ctx = Context(
-        outDir = Some(folder),
+        outDir = Some(dir),
         file = Some(f)
       )
+      print(s"Compiling ${f.getName}... ")
       val lex = Lexer.run(f)(ctx)
       Reporter.terminateIfErrors()
       val parsed = Parser.run(lex)(ctx)
@@ -34,37 +40,51 @@ class CodegenTest extends FlatSpec with Matchers {
       CodeGeneration.run(tc)(ctx)
       Reporter.terminateIfErrors()
 
-      // Run the classfiles
-      println(s"Program ${folder.getName}")
-      runCommand("java Main", folder)
+      // Create reference bytecodes with scalac
+      if(generateReferenceFiles) {
+        runCommand("mkdir reference", dir)
+        var (stdout, stderr, int) = runCommand(s"/usr/local/lib/scala-2.12.4/bin/scalac -d reference ${f.getAbsoluteFile}", dir)
+        int should equal (0)
+        println("Success.")
+      }
+
+      // Run our compiler and scala, compare results
+      print(s"Comparing output with scala compiler... ")
+      val (punktStdout, punktStderr, punktCode) = runCommand("java Main", dir)
+      val (scalaStdout, scalaStderr, scalaCode) = runCommand("/usr/local/lib/scala-2.12.4/bin/scala Main", new File(s"$dir/reference"))
+      punktCode should equal (scalaCode)
+      punktStdout should equal (scalaStdout)
+      punktStderr should equal (scalaStderr)
+      print("Success.")
 
       NameAnalysis.globalScope = new GlobalScope()
     })
   }
 
-  def runCommand(cmd: String, dir: File): Unit = {
+  def runCommand(cmd: String, dir: File): (String, String, Int) = {
     val pb: ProcessBuilder = Process(cmd, dir)
 
+    val stdout = StringBuilder.newBuilder
+    val stderr = StringBuilder.newBuilder
     val proc = pb.run(new ProcessIO(
       _.close(), // stdin
-      _.close(),
-      _.close()
-//      out => { // stdout
-//        val src = scala.io.Source.fromInputStream(out)
-//        for (line <- src.getLines()) {
-//          println(line)
-//        }
-//      },
-//      out => { // stderr
-//        val src = scala.io.Source.fromInputStream(out)
-//        for (line <- src.getLines()) {
-//          println(line)
-//        }
-//      },
+      out => { // stdout
+        val src = scala.io.Source.fromInputStream(out)
+        for (line <- src.getLines()) {
+          stdout.append(line + "\n")
+        }
+      },
+      out => { // stderr
+        val src = scala.io.Source.fromInputStream(out)
+        src.mkString
+        for (line <- src.getLines()) {
+          stderr.append(line + "\n")
+        }
+      },
     ))
 
     val exitCode = proc.exitValue()
 
-    println(s"EXIT: $exitCode")
+    (stdout.toString, stderr.toString(), exitCode)
   }
 }

@@ -11,7 +11,10 @@ class ParserTest extends FlatSpec with Matchers {
   "The AST object" should "produce correct ASTs from source code" in {
     println("--- AST ---")
     val d = new File("./testprograms/lab3/valid")
-    val files = d.listFiles.filter(_.isFile).toList
+    val files = d.listFiles.filter(x => {
+      x.isFile &&
+      x.getName.endsWith(".p0")
+    }).toList
     files.filter(x => !x.getName.contains(".ast")).foreach(f => {
       val ctx = Context()
       val lex = Lexer.run(f)(ctx)
@@ -66,10 +69,10 @@ class ParserTest extends FlatSpec with Matchers {
       val printParsePrintParse = Printer.apply(Parser.run(lex2)(ctx), printSymbols = false)
 
       if (printParse != printParsePrintParse) {
-        println("x - " + tmp.getName)
+        println("x - " + f.getName)
       }
       else {
-        println("v - " + tmp.getName)
+        println("v - " + f.getName)
         tmp.delete()
       }
 

@@ -6,6 +6,5 @@ class Fact {
 
 object Main extends App {
     println("f" + "oo" == "fo" + "o");
-    1010;
     println(new Fact() == new Fact())
 }
