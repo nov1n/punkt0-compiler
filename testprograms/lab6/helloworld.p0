@@ -1,13 +1,15 @@
-class Bar {
-
+class Foo {
   var foo : Int = 5;
+}
 
+class Bar extends Foo {
   def bar(a: Int, b : Int, c: Int) : Int = {
     //println(a);
     //println(b);
     foo = 7;
-    println(foo);
-    c
+    //3 + 5;
+    //println(foo);
+    foo
   }
 
   def newbar() : Bar = {
@@ -79,6 +81,7 @@ object MyMain extends App {
   //  println(true || false)
   //};
   var b : Bar = new Bar();
+  b.newbar().bar(1,2,3);
   println(b.newbar().bar(1,2,3))
   //println(a + 3)
   //println(5)

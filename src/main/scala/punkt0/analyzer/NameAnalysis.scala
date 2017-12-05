@@ -7,7 +7,7 @@ import punkt0.analyzer.Types._
 
 object NameAnalysis extends Phase[Program, Program] {
 
-  val globalScope = new GlobalScope()
+  var globalScope = new GlobalScope()
 
   def run(prog: Program)(ctx: Context): Program = {
     // Step 0: Add hardcoded class names to the global scope
@@ -31,7 +31,7 @@ object NameAnalysis extends Phase[Program, Program] {
     // Step 4: Enforce type-based constraints
     prog.classes.foreach(c => c.methods.foreach(Enforce.methodConstraints))
 
-//    debug()
+    if(ctx.debug) debug()
 
     prog
   }

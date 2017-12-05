@@ -7,9 +7,14 @@ import cafebabe._
 import AbstractByteCodes.{New => NewInst, _}
 import ByteCodes._
 import punkt0.analyzer.Symbols.MethodSymbol
+
 import scala.collection.mutable.{Map => MuMap}
 
 object CodeGeneration extends Phase[Program, Unit] {
+
+  var CLASS: String = "class"
+  var useRetVal : Boolean = false
+  var first : Boolean = false
 
   def run(prog: Program)(ctx: Context): Unit = {
 
@@ -27,15 +32,16 @@ object CodeGeneration extends Phase[Program, Unit] {
       val constructor = classFile.addConstructor(Nil).codeHandler
 
       // Create constructor
+      val className = ct.id.value
       val symbolsToRefs = MuMap[String, SymbolReference]()
+      symbolsToRefs += "class" -> Field(className)
       constructor <<
-      ALOAD_0 <<
-      InvokeSpecial(parentClass, "<init>", "()V") // Call parent constructor
+        ALOAD_0 <<
+        InvokeSpecial(parentClass, "<init>", "()V") // Call parent constructor
 
       // Initialize fields
       ct.vars.foreach(x => {
         val fieldName = x.getSymbol.toString
-        val className = ct.id.value
         classFile.addField(toJVMType(x.tpe.getType), fieldName)
         constructor << ALOAD_0
         generateExpr(x.expr, constructor, MuMap[String, SymbolReference]())
@@ -44,8 +50,8 @@ object CodeGeneration extends Phase[Program, Unit] {
       })
       constructor << RETURN
 
-      println(s"\nCLASS ${ct.id.value}")
-      println(s"METHOD ${ct.id.value}()")
+      if(ctx.debug) println(s"\nCLASS ${ct.id.value}")
+      if(ctx.debug) println(s"METHOD ${ct.id.value}()")
       constructor.freeze
       constructor.print
 
@@ -65,21 +71,21 @@ object CodeGeneration extends Phase[Program, Unit] {
       // Code handler for main
       val mainCH = classFile.addMainMethod.codeHandler
 
-      val symbolsToVars = MuMap[String, SymbolReference]()
+      val symbolsToRefs = MuMap[String, SymbolReference]()
 
       // Vars
-      main.vars.foreach(x => generateVarDecl(x, mainCH, symbolsToVars))
+      main.vars.foreach(x => generateVarDecl(x, mainCH, symbolsToRefs))
 
       // Exprs
-      main.exprs.foreach(x => generateExpr(x, mainCH, symbolsToVars))
+      main.exprs.foreach(x => generateExprWithPop(x, mainCH, symbolsToRefs))
 
       // Return
       mainCH << RETURN
 
       // Generate
-      println(s"\nCLASS ${main.obj.value}")
-      println(s"METHOD main(${mainCH.paramTypes})")
-      mainCH.print
+      if(ctx.debug) println(s"\nCLASS ${main.obj.value}")
+      if(ctx.debug) println(s"METHOD main(${mainCH.paramTypes})")
+      if(ctx.debug) mainCH.print
       mainCH.freeze
       classFile.writeToFile(s"$parentDir${classFile.className}.class")
     }
@@ -97,7 +103,7 @@ object CodeGeneration extends Phase[Program, Unit] {
       mt.vars.foreach(x => generateVarDecl(x, ch, symbolsToRefs))
 
       // Exprs
-      mt.exprs.foreach(x => generateExpr(x, ch, symbolsToRefs))
+      mt.exprs.foreach(x => generateExprWithPop(x, ch, symbolsToRefs))
 
       // Retexpr
       generateExpr(mt.retExpr, ch, symbolsToRefs)
@@ -106,13 +112,14 @@ object CodeGeneration extends Phase[Program, Unit] {
       val ret = mt.retType.getType match {
         case TInt | TBoolean => IRETURN
         case TClass(_) | TString => ARETURN
+        case TUnit => RETURN
         case x =>
           sys.error(s"Expr was $x. Should not happen.")
       }
       ch << ret
 
-      println(s"METHOD ${mt.id.value}(${ch.paramTypes})")
-      ch.print
+      if(ctx.debug) println(s"METHOD ${mt.id.value}(${ch.paramTypes})")
+      if(ctx.debug) ch.print
       ch.freeze
     }
 
@@ -135,11 +142,11 @@ object CodeGeneration extends Phase[Program, Unit] {
     generateMainClassFile(sourceName, prog.main, outDir)
   }
 
-  def generateVarDecl(v: VarDecl, ch: CodeHandler, symbolsToSlots : MuMap[String, SymbolReference]): CodeHandler = {
-    generateExpr(v.expr, ch, symbolsToSlots)
+  def generateVarDecl(v: VarDecl, ch: CodeHandler, symbolsToRefs : MuMap[String, SymbolReference]): CodeHandler = {
+    generateExpr(v.expr, ch, symbolsToRefs)
 
     val var1 = ch.getFreshVar
-    symbolsToSlots += v.getSymbol.toString -> Var(var1)
+    symbolsToRefs += v.getSymbol.toString -> Var(var1)
     v.tpe.getType match {
       case TClass(_) | TString =>
         ch << AStore(var1)
@@ -150,282 +157,301 @@ object CodeGeneration extends Phase[Program, Unit] {
     }
   }
 
+  // E.g. `void foo(int a, boolean b)` ==> (IZ)V
   def createMethodSignature(m: MethodCall) : String = {
     s"(${m.args.map(x => toJVMType(x.getType)).mkString("")})${toJVMType(m.getType)}"
-    // E.g. `void foo(int a, boolean b)` ==> (IZ)V
   }
 
-  def generateExpr(e: ExprTree, ch: CodeHandler, symbolsToRefs : MuMap[String, SymbolReference]): CodeHandler = e match {
-    case Println(en) =>
-      val tpe = toJVMType(en.getType)
+  def generateExprWithPop(e: ExprTree, ch: CodeHandler, symbolsToRefs: MuMap[String, SymbolReference]): Unit = {
+    generateExpr(e, ch, symbolsToRefs)
+    e.getType match {
+      case TUnit => Unit
+      case _ => ch << POP
+    }
+  }
 
-      val var1 = ch.getFreshVar
-      val var2 = ch.getFreshVar
+  def generateExpr(e: ExprTree, ch: CodeHandler, symbolsToRefs : MuMap[String, SymbolReference]): CodeHandler = {
+    e match {
+      case Println(en) =>
+        val tpe = toJVMType(en.getType)
 
-      ch <<
-        NewInst("java/lang/StringBuilder") <<
-        DUP <<
-        InvokeSpecial("java/lang/StringBuilder", "<init>", "()V") <<
-        AStore(var1) <<
-        ALoad(var1)
+        val var1 = ch.getFreshVar
+        val var2 = ch.getFreshVar
 
-      generateExpr(en, ch, symbolsToRefs) <<
-        InvokeVirtual("java/lang/StringBuilder", "append", s"($tpe)Ljava/lang/StringBuilder;") <<
-        POP <<
-        ALoad(var1) <<
-        InvokeVirtual("java/lang/StringBuilder", "toString", "()Ljava/lang/String;") <<
-        AStore(var2) <<
-        GetStatic("java/lang/System", "out", "Ljava/io/PrintStream;") <<
-        ALoad(var2) <<
-        InvokeVirtual("java/io/PrintStream", "println", "(Ljava/lang/String;)V")
-    case True() =>
-      ch << Ldc(1)
-    case False() =>
-      ch << Ldc(0)
-    case StringLit(v) =>
-      ch << Ldc(v)
-    case IntLit(v) =>
-      ch << Ldc(v)
-    case Plus(l, r) =>
-      (l.getType, r.getType) match {
-        case (TInt, TInt) =>
-          generateExpr(l, ch, symbolsToRefs)
-          generateExpr(r, ch, symbolsToRefs)
-          ch << IADD
-        case (_, _) =>
-          val var1 = ch.getFreshVar
-          // Create strinbuilder
-          ch <<
-            NewInst("java/lang/StringBuilder") <<
-            DUP <<
-            InvokeSpecial("java/lang/StringBuilder", "<init>", "()V") <<
-            AStore(var1) <<
-            ALoad(var1)
-          generateExpr(l, ch, symbolsToRefs)
+        ch <<
+          NewInst("java/lang/StringBuilder") <<
+          DUP <<
+          InvokeSpecial("java/lang/StringBuilder", "<init>", "()V") <<
+          AStore(var1) <<
+          ALoad(var1)
 
-          // Append left
-          ch <<
-            InvokeVirtual("java/lang/StringBuilder", "append", s"(${toJVMType(l.getType)})Ljava/lang/StringBuilder;") <<
-            POP <<
-            ALoad(var1)
+        generateExpr(en, ch, symbolsToRefs) <<
+          InvokeVirtual("java/lang/StringBuilder", "append", s"($tpe)Ljava/lang/StringBuilder;") <<
+          POP <<
+          ALoad(var1) <<
+          InvokeVirtual("java/lang/StringBuilder", "toString", "()Ljava/lang/String;") <<
+          AStore(var2) <<
+          GetStatic("java/lang/System", "out", "Ljava/io/PrintStream;") <<
+          ALoad(var2) <<
+          InvokeVirtual("java/io/PrintStream", "println", "(Ljava/lang/String;)V")
+      case True() =>
+        ch << Ldc(1)
+      case False() =>
+        ch << Ldc(0)
+      case StringLit(v) =>
+        ch << Ldc(v)
+      case IntLit(v) =>
+        ch << Ldc(v)
+      case Plus(l, r) =>
+        (l.getType, r.getType) match {
+          case (TInt, TInt) =>
+            generateExpr(l, ch, symbolsToRefs)
+            generateExpr(r, ch, symbolsToRefs)
+            ch << IADD
+          case (_, _) =>
+            val var1 = ch.getFreshVar
+            // Create strinbuilder
+            ch <<
+              NewInst("java/lang/StringBuilder") <<
+              DUP <<
+              InvokeSpecial("java/lang/StringBuilder", "<init>", "()V") <<
+              AStore(var1) <<
+              ALoad(var1)
+            generateExpr(l, ch, symbolsToRefs)
 
-          // Append right
-          generateExpr(r, ch, symbolsToRefs)
-          ch <<
-            InvokeVirtual("java/lang/StringBuilder", "append", s"(${toJVMType(r.getType)})Ljava/lang/StringBuilder;") <<
-            POP <<
-            ALoad(var1) <<
-            // Push the string on the stack
-            InvokeVirtual("java/lang/StringBuilder", "toString", "()Ljava/lang/String;")
-      }
-    case Minus(l, r) =>
-      generateExpr(l, ch, symbolsToRefs)
-      generateExpr(r, ch, symbolsToRefs)
-      ch << ISUB
-    case Times(l, r) =>
-      generateExpr(l, ch, symbolsToRefs)
-      generateExpr(r, ch, symbolsToRefs)
-      ch << IMUL
-    case Div(l, r) =>
-      generateExpr(l, ch, symbolsToRefs)
-      generateExpr(r, ch, symbolsToRefs)
-      ch << IDIV
-    case Equals(l, r) =>
-      generateExpr(l, ch, symbolsToRefs)
-      generateExpr(r, ch, symbolsToRefs)
+            // Append left
+            ch <<
+              InvokeVirtual("java/lang/StringBuilder", "append", s"(${toJVMType(l.getType)})Ljava/lang/StringBuilder;") <<
+              POP <<
+              ALoad(var1)
 
-      val trueLbl = ch.getFreshLabel("equal")
-      val falseLbl = ch.getFreshLabel("notEqual")
+            // Append right
+            generateExpr(r, ch, symbolsToRefs)
+            ch <<
+              InvokeVirtual("java/lang/StringBuilder", "append", s"(${toJVMType(r.getType)})Ljava/lang/StringBuilder;") <<
+              POP <<
+              ALoad(var1) <<
+              // Push the string on the stack
+              InvokeVirtual("java/lang/StringBuilder", "toString", "()Ljava/lang/String;")
+        }
+      case Minus(l, r) =>
+        generateExpr(l, ch, symbolsToRefs)
+        generateExpr(r, ch, symbolsToRefs)
+        ch << ISUB
+      case Times(l, r) =>
+        generateExpr(l, ch, symbolsToRefs)
+        generateExpr(r, ch, symbolsToRefs)
+        ch << IMUL
+      case Div(l, r) =>
+        generateExpr(l, ch, symbolsToRefs)
+        generateExpr(r, ch, symbolsToRefs)
+        ch << IDIV
+      case Equals(l, r) =>
+        generateExpr(l, ch, symbolsToRefs)
+        generateExpr(r, ch, symbolsToRefs)
 
-      l.getType match {
-        case TInt | TBoolean =>
-          ch <<
-            If_ICmpEq(trueLbl)
-        case _ =>
-          ch <<
-            If_ACmpEq(trueLbl)
-      }
-      ch <<
-        Ldc(0) <<
-        Goto(falseLbl) <<
-        Label(trueLbl) <<
-        Ldc(1) <<
-        Label(falseLbl)
-    case LessThan(l, r) =>
-      generateExpr(l, ch, symbolsToRefs)
-      generateExpr(r, ch, symbolsToRefs)
+        val trueLbl = ch.getFreshLabel("equal")
+        val falseLbl = ch.getFreshLabel("notEqual")
 
-      val trueLbl = ch.getFreshLabel("lessThan")
-      val falseLbl = ch.getFreshLabel("greaterOrEqual")
-      ch <<
-        If_ICmpLt(trueLbl) <<
-        Ldc(0) <<
-        Goto(falseLbl) <<
-        Label(trueLbl) <<
-        Ldc(1) <<
-        Label(falseLbl)
-    case Assign(id, expr) =>
-      val name = id.getSymbol.toString
+        l.getType match {
+          case TInt | TBoolean =>
+            ch <<
+              If_ICmpEq(trueLbl)
+          case _ =>
+            ch <<
+              If_ACmpEq(trueLbl)
+        }
+        ch <<
+          Ldc(0) <<
+          Goto(falseLbl) <<
+          Label(trueLbl) <<
+          Ldc(1) <<
+          Label(falseLbl)
+      case LessThan(l, r) =>
+        generateExpr(l, ch, symbolsToRefs)
+        generateExpr(r, ch, symbolsToRefs)
 
-      // (A,I)Store or PUTFIELD
-      symbolsToRefs.get(name) match {
-        case Some(x) => x match {
-          case Var(slot) =>
-            expr.getType match {
-              case TClass(_) | TString =>
-                generateExpr(expr, ch, symbolsToRefs)
-                ch << AStore(slot)
-              case TInt | TBoolean =>
-                generateExpr(expr, ch, symbolsToRefs)
-                ch << IStore(slot)
-              case y =>
-                sys.error(s"Expr was $y. Should not happen.")
-            }
-          case Field(clas) =>
+        val trueLbl = ch.getFreshLabel("lessThan")
+        val falseLbl = ch.getFreshLabel("greaterOrEqual")
+        ch <<
+          If_ICmpLt(trueLbl) <<
+          Ldc(0) <<
+          Goto(falseLbl) <<
+          Label(trueLbl) <<
+          Ldc(1) <<
+          Label(falseLbl)
+      case Assign(id, expr) =>
+        val name = id.getSymbol.toString
+
+        // (A,I)Store or PUTFIELD
+        symbolsToRefs.get(name) match {
+          case Some(x) => x match {
+            case Var(slot) =>
+              expr.getType match {
+                case TClass(_) | TString =>
+                  generateExpr(expr, ch, symbolsToRefs)
+                  ch << AStore(slot)
+                case TInt | TBoolean =>
+                  generateExpr(expr, ch, symbolsToRefs)
+                  ch << IStore(slot)
+                case y =>
+                  sys.error(s"Expr was $y. Should not happen.")
+              }
+            case Field(clas) =>
+              ch << ALOAD_0
+              generateExpr(expr, ch, symbolsToRefs)
+              ch << PutField(clas, name, toJVMType(id.getType))
+          }
+          case None => //TODO: Check parent
             ch << ALOAD_0
             generateExpr(expr, ch, symbolsToRefs)
-            ch << PutField(clas, name, toJVMType(id.getType))
+            ch << PutField(symbolsToRefs(CLASS).asInstanceOf[Field].clas, name, toJVMType(id.getType))
         }
-        case None => sys.error(s"Assigning to uninitialized variable ${id.value}.")
-      }
-    case Not(expr: ExprTree) =>
-      generateExpr(expr, ch, symbolsToRefs)
+      case Not(expr: ExprTree) =>
+        generateExpr(expr, ch, symbolsToRefs)
 
-      val trueLbl = ch.getFreshLabel("equal")
-      val falseLbl = ch.getFreshLabel("notEqual")
-      ch <<
-        IfEq(trueLbl) <<
-        Ldc(0) <<
-        Goto(falseLbl) <<
-        Label(trueLbl) <<
-        Ldc(1) <<
-        Label(falseLbl)
-    case And(l, r) =>
-      val trueLbl = ch.getFreshLabel("true")
-      val falseLbl = ch.getFreshLabel("false")
+        val trueLbl = ch.getFreshLabel("equal")
+        val falseLbl = ch.getFreshLabel("notEqual")
+        ch <<
+          IfEq(trueLbl) <<
+          Ldc(0) <<
+          Goto(falseLbl) <<
+          Label(trueLbl) <<
+          Ldc(1) <<
+          Label(falseLbl)
+      case And(l, r) =>
+        val trueLbl = ch.getFreshLabel("true")
+        val falseLbl = ch.getFreshLabel("false")
 
-      generateExpr(l, ch, symbolsToRefs)
+        generateExpr(l, ch, symbolsToRefs)
 
-      ch <<
-        IfEq(falseLbl)
+        ch <<
+          IfEq(falseLbl)
 
-      generateExpr(r, ch, symbolsToRefs)
+        generateExpr(r, ch, symbolsToRefs)
 
-      ch <<
-        IfEq(falseLbl) <<
-        Ldc(1) <<
-        Goto(trueLbl) <<
-        Label(falseLbl) <<
-        Ldc(0) <<
-        Label(trueLbl)
-    case Or(l, r) =>
-      val rightLbl = ch.getFreshLabel("right")
-      val trueLbl = ch.getFreshLabel("true")
-      val falseLbl = ch.getFreshLabel("false")
+        ch <<
+          IfEq(falseLbl) <<
+          Ldc(1) <<
+          Goto(trueLbl) <<
+          Label(falseLbl) <<
+          Ldc(0) <<
+          Label(trueLbl)
+      case Or(l, r) =>
+        val rightLbl = ch.getFreshLabel("right")
+        val trueLbl = ch.getFreshLabel("true")
+        val falseLbl = ch.getFreshLabel("false")
 
-      generateExpr(l, ch, symbolsToRefs)
+        generateExpr(l, ch, symbolsToRefs)
 
-      ch <<
-        IfEq(rightLbl) <<
-        Ldc(1) <<
-        Goto(trueLbl) <<
-        Label(rightLbl)
+        ch <<
+          IfEq(rightLbl) <<
+          Ldc(1) <<
+          Goto(trueLbl) <<
+          Label(rightLbl)
 
-      generateExpr(r, ch, symbolsToRefs)
+        generateExpr(r, ch, symbolsToRefs)
 
-      ch <<
-        IfEq(falseLbl) <<
-        Ldc(1) <<
-        Goto(trueLbl) <<
-        Label(falseLbl) <<
-        Ldc(0) <<
-        Label(trueLbl)
-    case New(tpe: Identifier) =>
-      ch <<
-        NewInst(tpe.value) <<
-        DUP <<
-        InvokeSpecial(tpe.value, "<init>", "()V")
+        ch <<
+          IfEq(falseLbl) <<
+          Ldc(1) <<
+          Goto(trueLbl) <<
+          Label(falseLbl) <<
+          Ldc(0) <<
+          Label(trueLbl)
+      case New(tpe: Identifier) =>
+        ch <<
+          NewInst(tpe.value) <<
+          DUP <<
+          InvokeSpecial(tpe.value, "<init>", "()V")
 
-    case m @ MethodCall(obj, meth, args) =>
-      generateExpr(obj, ch, symbolsToRefs)
+      case m@MethodCall(obj, meth, args) =>
+        generateExpr(obj, ch, symbolsToRefs)
 
-      args.foreach(x => generateExpr(x, ch, symbolsToRefs))
-      ch <<
-        InvokeVirtual(meth.getSymbol.asInstanceOf[MethodSymbol].classSymbol.name, meth.value, createMethodSignature(m))
-    case id @ Identifier(_) =>
-      id.getType match {
-        case TClass(_) | TString =>
-          val name = id.getSymbol.toString
-          symbolsToRefs.get(name) match {
-            case Some(x) => x match {
-              case Var(slot) =>
-                ch << ALoad(slot)
-            case Field(clas) =>
-              // Fallback on field if not found in method scope
-              ch <<
-                ALOAD_0 <<
-                GetField(clas, name, toJVMType(id.getType))
+        args.foreach(x => generateExpr(x, ch, symbolsToRefs))
+        ch <<
+          InvokeVirtual(meth.getSymbol.asInstanceOf[MethodSymbol].classSymbol.name, meth.value, createMethodSignature(m))
+      case id@Identifier(_) =>
+        id.getType match {
+          case TClass(_) | TString =>
+            val name = id.getSymbol.toString
+            symbolsToRefs.get(name) match {
+              case Some(x) => x match {
+                case Var(slot) =>
+                  ch << ALoad(slot)
+                case Field(clas) =>
+                  // Fallback on field if not found in method scope
+                  ch <<
+                    ALOAD_0 <<
+                    GetField(clas, name, toJVMType(id.getType))
+              }
+              case None =>
+                ch <<
+                  ALOAD_0 <<
+                  GetField(symbolsToRefs(CLASS).asInstanceOf[Field].clas, name, toJVMType(id.getType))
             }
-            case None => sys.error(s"No variable or field with name ${id.value} found.")
-          }
-        case TInt | TBoolean =>
-          val name = id.getSymbol.toString
-          symbolsToRefs.get(name) match {
-            case Some(x) => x match {
-              case Var(slot) =>
-                ch << ILoad(slot)
-              case Field(clas) => ch <<
-                ALOAD_0 <<
-                GetField(clas, name, toJVMType(id.getType))
+          case TInt | TBoolean =>
+            val name = id.getSymbol.toString
+            symbolsToRefs.get(name) match {
+              case Some(x) => x match {
+                case Var(slot) =>
+                  ch << ILoad(slot)
+                case Field(clas) => ch <<
+                  ALOAD_0 <<
+                  GetField(clas, name, toJVMType(id.getType))
+              }
+              case None =>
+                ch <<
+                  ALOAD_0 <<
+                  GetField(symbolsToRefs("class").asInstanceOf[Field].clas, name, toJVMType(id.getType))
             }
-            case None => sys.error(s"No variable or field with name $name found.")
-          }
-        case x =>
-          sys.error(s"Expr was $x. Should not happen.")
-      }
-    case This() =>
-      ch << ALOAD_0
-    case Null() =>
-      ch << ACONST_NULL
-    case If(expr, thn, els) =>
-      generateExpr(expr, ch, symbolsToRefs)
+          case x =>
+            sys.error(s"Expr was $x. Should not happen.")
+        }
+      case This() =>
+        ch << ALOAD_0
+      case Null() =>
+        ch << ACONST_NULL
+      case If(expr, thn, els) =>
+        generateExpr(expr, ch, symbolsToRefs)
 
-      val trueLbl = ch.getFreshLabel("true")
-      val falseLbl = ch.getFreshLabel("false")
+        val trueLbl = ch.getFreshLabel("true")
+        val falseLbl = ch.getFreshLabel("false")
 
-      ch <<
-        IfEq(falseLbl)
+        ch <<
+          IfEq(falseLbl)
 
-      generateExpr(thn, ch, symbolsToRefs)
+        generateExpr(thn, ch, symbolsToRefs)
 
-      ch <<
-        Goto(trueLbl) <<
-        Label(falseLbl)
+        ch <<
+          Goto(trueLbl) <<
+          Label(falseLbl)
 
-      if(els.isDefined) generateExpr(els.get, ch, symbolsToRefs)
+        if (els.isDefined) generateExpr(els.get, ch, symbolsToRefs)
 
-      ch <<
-        Label(trueLbl)
-    case Block(exprs) =>
-      exprs.foreach(x => generateExpr(x, ch, symbolsToRefs))
-      ch
-    case While(cond, body) =>
-      val endLbl = ch.getFreshLabel("end")
-      val loopLbl = ch.getFreshLabel("loop")
+        ch <<
+          Label(trueLbl)
+      case Block(exprs) =>
+        exprs.foreach(x => generateExpr(x, ch, symbolsToRefs))
+        ch
+      case While(cond, body) =>
+        val endLbl = ch.getFreshLabel("end")
+        val loopLbl = ch.getFreshLabel("loop")
 
-      ch <<
-        Label(loopLbl)
+        ch <<
+          Label(loopLbl)
 
-      generateExpr(cond, ch, symbolsToRefs)
+        generateExpr(cond, ch, symbolsToRefs)
 
-      ch <<
-        IfEq(endLbl)
+        ch <<
+          IfEq(endLbl)
 
-      generateExpr(body, ch, symbolsToRefs)
+        generateExpr(body, ch, symbolsToRefs)
 
-      ch <<
-        Goto(loopLbl) <<
-        Label(endLbl)
+        ch <<
+          Goto(loopLbl) <<
+          Label(endLbl)
+    }
   }
 
   def toJVMType(t: Type) : String = t match {

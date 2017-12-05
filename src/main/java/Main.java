@@ -21,14 +21,15 @@
 //    }
 //}
 
-
-class Bar {
-
+class Foo{
     int foo = 5;
+}
+
+class Bar extends Foo{
 
     Bar bar() {
         Bar bar = new Bar();
-        bar.foo = 3;
+        foo = 3;
         return bar;
     }
 

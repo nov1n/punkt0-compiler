@@ -76,8 +76,8 @@ object Enforce {
   }
 
   def assignConstantOrNew(v: VarDecl): Unit = v.expr match {
-    case Null() | New(_) | IntLit(_) | StringLit(_) | True() | False() | Null() => Unit
-    case _ => Reporter.error(s"illigal variable delcaration, should be a constant or new'", v.id)
+    case Block(_) | If(_, _, _) | While(_, _) |Println(_) | Assign(_, _) => Reporter.error(s"illigal variable delcaration, should be a constant or new'", v.id)
+    case _ => Unit
   }
 
   def methodConstraints(m: MethodDecl) : Unit = {

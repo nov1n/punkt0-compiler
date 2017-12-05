@@ -7,8 +7,6 @@ import punkt0.analyzer.Symbols.VariableSymbol
 
 object TypeChecking extends Phase[Program, Program] {
 
-  val _printTypes: Boolean = true
-
   def calcLeastUpperBound(t1: Type, t2: Type): Type = (t1, t2) match {
     case (TClass(cs1), TClass(cs2)) if cs1.getType.isSubTypeOf(cs2.getType) => cs2.getType // cs1 < cs2
     case (TClass(cs1), TClass(cs2)) if cs2.getType.isSubTypeOf(cs1.getType) => cs1.getType // cs2 < cs1
@@ -188,7 +186,7 @@ object TypeChecking extends Phase[Program, Program] {
       expr.setType(tpe)
 
       // Debug
-      if(_printTypes) println(expr, expr.getType, tpe)
+      if(ctx.debug) println(expr, expr.getType, tpe)
 
       // Check result and return a valid type in case of error
       if (expected.isEmpty) {
