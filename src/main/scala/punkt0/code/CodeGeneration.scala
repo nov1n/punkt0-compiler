@@ -14,8 +14,6 @@ import scala.collection.mutable.{Map => MuMap}
 object CodeGeneration extends Phase[Program, Unit] {
 
   var CLASS: String = "class"
-  var useRetVal : Boolean = false
-  var first : Boolean = false
 
   def run(prog: Program)(ctx: Context): Unit = {
 

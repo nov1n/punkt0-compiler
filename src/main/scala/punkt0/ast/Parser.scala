@@ -285,8 +285,9 @@ object Parser extends Phase[Iterator[Token], Program] {
         val meth = identifier
         eat(LPAREN)
         var args = List[ExprTree]()
+        if(currentToken.kind != RPAREN) args :+= expression
         while (currentToken.kind != RPAREN) {
-          if (currentToken.kind == COMMA) eat(COMMA)
+          eat(COMMA)
           args :+= expression
         }
         eat(RPAREN)
