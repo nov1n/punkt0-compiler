@@ -1,5 +1,6 @@
 package punkt0
 package code
+// TODO: Add line numbers
 
 import ast.Trees._
 import analyzer.Types._
@@ -52,8 +53,8 @@ object CodeGeneration extends Phase[Program, Unit] {
 
       if(ctx.debug) println(s"\nCLASS ${ct.id.value}")
       if(ctx.debug) println(s"METHOD ${ct.id.value}()")
+      if(ctx.debug) constructor.print
       constructor.freeze
-      constructor.print
 
       ct.methods.foreach(x => {
         val mh = classFile.addMethod(toJVMType(x.retType.getType), x.id.value, x.args.map(y => toJVMType(y.tpe.getType)))
@@ -158,8 +159,8 @@ object CodeGeneration extends Phase[Program, Unit] {
   }
 
   // E.g. `void foo(int a, boolean b)` ==> (IZ)V
-  def createMethodSignature(m: MethodCall) : String = {
-    s"(${m.args.map(x => toJVMType(x.getType)).mkString("")})${toJVMType(m.getType)}"
+  def createMethodSignature(m: MethodSymbol) : String = {
+    s"(${m.argList.map(x => toJVMType(x.getType)).mkString("")})${toJVMType(m.getType)}"
   }
 
   def generateExprWithPop(e: ExprTree, ch: CodeHandler, symbolsToRefs: MuMap[String, SymbolReference]): Unit = {
@@ -302,7 +303,7 @@ object CodeGeneration extends Phase[Program, Unit] {
               generateExpr(expr, ch, symbolsToRefs)
               ch << PutField(clas, name, toJVMType(id.getType))
           }
-          case None => //TODO: Check parent
+          case None =>
             ch << ALOAD_0
             generateExpr(expr, ch, symbolsToRefs)
             ch << PutField(symbolsToRefs(CLASS).asInstanceOf[Field].clas, name, toJVMType(id.getType))
@@ -364,13 +365,28 @@ object CodeGeneration extends Phase[Program, Unit] {
           NewInst(tpe.value) <<
           DUP <<
           InvokeSpecial(tpe.value, "<init>", "()V")
-
-      case m@MethodCall(obj, meth, args) =>
+      case MethodCall(obj, meth, args) =>
         generateExpr(obj, ch, symbolsToRefs)
 
         args.foreach(x => generateExpr(x, ch, symbolsToRefs))
-        ch <<
-          InvokeVirtual(meth.getSymbol.asInstanceOf[MethodSymbol].classSymbol.name, meth.value, createMethodSignature(m))
+
+        // Find the correct method in the class hierarchy
+        meth.getSymbol match {
+          case x : MethodSymbol =>
+            val classSymbol = x.classSymbol
+            var className = classSymbol.name
+            val methodName = meth.value
+            classSymbol.lookupMethod(methodName) match {
+              case Some(y) =>
+                className = y.classSymbol.name
+
+                // Append bytecodes to handler
+                ch <<
+                  InvokeVirtual(className, methodName, createMethodSignature(y))
+              case None => sys.error(s"Method $methodName not found in class $className")
+            }
+          case x => sys.error(s"Method symbol in method ${meth.value} was $x")
+        }
       case id@Identifier(_) =>
         id.getType match {
           case TClass(_) | TString =>

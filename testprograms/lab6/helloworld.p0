@@ -1,18 +1,22 @@
 class Foo {
   var foo : Int = 5;
+  def bar(a: Int, b : Int, c: Int) : Int = {
+    1
+  }
 }
 
 class Bar extends Foo {
-  def bar(a: Int, b : Int, c: Int) : Int = {
-    //println(a);
-    //println(b);
+  override def bar(a: Int, b : Int, c: Int) : Int = {
+    println(a);
+    println(b);
     foo = 7;
     //3 + 5;
     //println(foo);
     foo
   }
 
-  def newbar() : Bar = {
+  def newbar(f : Foo) : Bar = {
+    println(f.bar(1,2,3));
     new Bar()
   }
 }
@@ -81,8 +85,9 @@ object MyMain extends App {
   //  println(true || false)
   //};
   var b : Bar = new Bar();
-  b.newbar().bar(1,2,3);
-  println(b.newbar().bar(1,2,3))
+  b.newbar(b)
+  //b.newbar().bar(1,2,3);
+  //println(b.newbar().bar(1,2,3))
   //println(a + 3)
   //println(5)
 }

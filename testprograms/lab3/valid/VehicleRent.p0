@@ -1,6 +1,6 @@
 // This programm simulates a very simple car and truck renting agency
-// It can specially be used to test inheritance (the Car and Truck 
-// classes extends from the Vehicle class) 
+// It can specially be used to test inheritance (the Car and Truck
+// classes extends from the Vehicle class)
 
 // The renting agecy
 class RentingAgency {
@@ -9,23 +9,23 @@ class RentingAgency {
       var client1 : Client = null;
       var client2 : Client = null;
       var client3 : Client = null;
-      
+
       var car1 : Car = null;
       var car2 : Car = null;
-      
+
       var truck1 : Truck = null;
       var truck2 : Truck = null;
-      
+
       client1 = new Client();
       client2 = new Client();
       client3 = new Client();
-      
+
       car1 = new Car();
       car2 = new Car();
-      
+
       truck1 = new Truck();
       truck2 = new Truck();
-      
+
       println(car1.init(27275,"Ferrari",2));
       println(car2.init(32113,"VW",7));
       println(truck1.init(12879,"Opel",40));
@@ -34,7 +34,7 @@ class RentingAgency {
       println(client2.create(2,"Angelina Jolie"));
       println(client3.create(3,"Cameron Diaz"));
       println("");
-      
+
       println("----- START OF THE EXAMPLE DAY OF A RENTING AGENCY -----");
       println("");
       println(this.checkout(client1,car1));
@@ -43,18 +43,18 @@ class RentingAgency {
       println(this.checkin(client1,car1,453));
       println(this.checkout(client3, truck2));
       println(this.checkout(client3, truck1));
-      println(this.checkout(client2, car1)); 
+      println(this.checkout(client2, car1));
       println(this.checkin(client3,truck2,1011));
-      println(this.checkin(client2,car1,123));     
+      println(this.checkin(client2,car1,123));
       "------ END OF THE EXAMPLE DAY OF A RENTING AGENCY ------"
    }
-   
+
    // the given client tries to rent the given vehicle
    def checkout(client : Client, vehicle : Vehicle) : String = {
       println(" " + client.rent(vehicle));
       ""
    }
-   
+
    // the given client tries to return the given vehicle
    def checkin(client : Client, vehicle : Vehicle, milage : Int) : String = {
       println(" " + client.restore(vehicle, milage));
