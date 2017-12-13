@@ -6,6 +6,17 @@ import punkt0.analyzer.Types._
 import punkt0.ast.Trees._
 
 object Enforce {
+  def ifOverridesExists(overrides: Boolean, m: MethodDecl) : Unit = {
+    if(!overrides) return
+    m.getSymbol.classSymbol.parent match {
+      case Some(x) => x.lookupMethod(m.id.value) match {
+        case Some(y) => Unit
+        case None => Reporter.error(s"Overriding nonexisting method ${m.id.value}", m)
+      }
+      case None => Unit
+    }
+  }
+
   def notUnit(v: Typed with Positioned) : Unit = v.getType match {
     case TUnit =>
       Reporter.error(s"Variable $v cannot have type Unit")

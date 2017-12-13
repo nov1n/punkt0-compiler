@@ -236,6 +236,7 @@ object NameAnalysis extends Phase[Program, Program] {
         symbolizeIdentifiers(retType, scope)
         args.foreach(symbolizeIdentifiers(_, scope))
         Enforce.uniqueNames(args, scope)
+        Enforce.ifOverridesExists(overrides, m)
         vars.foreach(symbolizeIdentifiers(_, scope))
         exprs.foreach(symbolizeIdentifiers(_, scope))
         symbolizeIdentifiers(retExpr, scope)
