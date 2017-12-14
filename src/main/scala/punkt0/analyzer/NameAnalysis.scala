@@ -147,6 +147,7 @@ object NameAnalysis extends Phase[Program, Program] {
     prog.classes.foreach(c => {
       val className = c.id.value
       val classSymbol = new ClassSymbol(className).setPos(c)
+      classSymbol.foreignPath = c.foreignPath
 
       // Classes
       c.setSymbol(classSymbol)
@@ -229,10 +230,10 @@ object NameAnalysis extends Phase[Program, Program] {
       case MainDecl(obj, parent, vars, exprs) =>
         vars.foreach(symbolizeIdentifiers(_, scope))
         exprs.foreach(symbolizeIdentifiers(_, scope))
-      case ClassDecl(id, parent, vars, methods) =>
+      case ClassDecl(id, parent, vars, methods, _) =>
         vars.foreach(symbolizeIdentifiers(_, scope))
         methods.foreach(m => symbolizeIdentifiers(m, m))
-      case m @ MethodDecl(overrides, retType, id, args, vars, exprs, retExpr) =>
+      case m @ MethodDecl(overrides, retType, id, args, vars, exprs, retExpr, foreignPath) =>
         symbolizeIdentifiers(retType, scope)
         args.foreach(symbolizeIdentifiers(_, scope))
         Enforce.uniqueNames(args, scope)
@@ -247,7 +248,9 @@ object NameAnalysis extends Phase[Program, Program] {
         symbolizeIdentifier(id, scope)
         symbolizeIdentifiers(expr, scope)
       case id @ Identifier(_) => symbolizeIdentifier(id, scope)
-      case New(tpe) => symbolizeIdentifier(tpe, scope)
+      case New(tpe) =>
+        Enforce.classExists(tpe)
+        symbolizeIdentifier(tpe, scope)
       case Not(expr) => symbolizeIdentifiers(expr, scope)
       case Formal(tpe, id) =>
         symbolizeIdentifiers(tpe, scope)

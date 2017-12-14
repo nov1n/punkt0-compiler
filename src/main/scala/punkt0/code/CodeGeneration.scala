@@ -7,7 +7,9 @@ import analyzer.Types._
 import cafebabe._
 import AbstractByteCodes.{New => NewInst, _}
 import ByteCodes._
-import punkt0.analyzer.Symbols.MethodSymbol
+import punkt0.analyzer.{NameAnalysis, Symbols}
+import punkt0.analyzer.Symbols.{ClassSymbol, MethodSymbol}
+import punkt0.conversion.Convert._
 
 import scala.collection.mutable.{Map => MuMap}
 
@@ -41,10 +43,10 @@ object CodeGeneration extends Phase[Program, Unit] {
       // Initialize fields
       ct.vars.foreach(x => {
         val fieldName = x.getSymbol.toString
-        classFile.addField(toJVMType(x.tpe.getType), fieldName)
+        classFile.addField(typeToJVMType(x.tpe.getType), fieldName)
         constructor << ALOAD_0
         generateExpr(x.expr, constructor, MuMap[String, SymbolReference]())
-        constructor << PutField(className, fieldName, toJVMType(x.getSymbol.getType))
+        constructor << PutField(className, fieldName, typeToJVMType(x.getSymbol.getType))
         symbolsToRefs += fieldName -> Field(ct.id.value)
       })
       constructor << RETURN
@@ -54,8 +56,10 @@ object CodeGeneration extends Phase[Program, Unit] {
       if(ctx.debug) constructor.print
       constructor.freeze
 
-      ct.methods.foreach(x => {
-        val mh = classFile.addMethod(toJVMType(x.retType.getType), x.id.value, x.args.map(y => toJVMType(y.tpe.getType)))
+      ct.methods
+        .filter(_.foreignPath.isEmpty)
+        .foreach(x => {
+        val mh = classFile.addMethod(typeToJVMType(x.retType.getType), x.id.value, x.args.map(y => typeToJVMType(y.tpe.getType)))
         generateMethodCode(mh.codeHandler, x, symbolsToRefs)
       })
       classFile.writeToFile(s"$parentDir${ct.id.value}.class")
@@ -133,9 +137,9 @@ object CodeGeneration extends Phase[Program, Unit] {
     val sourceName = ctx.file.get.getName
 
     // One classfile per class
-    prog.classes foreach {
-      ct => generateClassFile(sourceName, ct, outDir)
-    }
+    prog.classes
+      .filter(_.foreignPath.isEmpty)
+      .foreach { ct => generateClassFile(sourceName, ct, outDir) }
 
     // One classfile for main
     generateMainClassFile(sourceName, prog.main, outDir)
@@ -158,7 +162,7 @@ object CodeGeneration extends Phase[Program, Unit] {
 
   // E.g. `void foo(int a, boolean b)` ==> (IZ)V
   def createMethodSignature(m: MethodSymbol) : String = {
-    s"(${m.argList.map(x => toJVMType(x.getType)).mkString("")})${toJVMType(m.getType)}"
+    s"(${m.argList.map(x => typeToJVMType(x.getType)).mkString("")})${typeToJVMType(m.getType)}"
   }
 
   def generateExprWithPop(e: ExprTree, ch: CodeHandler, symbolsToRefs: MuMap[String, SymbolReference]): Unit = {
@@ -172,7 +176,7 @@ object CodeGeneration extends Phase[Program, Unit] {
   def generateExpr(e: ExprTree, ch: CodeHandler, symbolsToRefs : MuMap[String, SymbolReference]): CodeHandler = {
     e match {
       case Println(en) =>
-        val tpe = toJVMType(en.getType)
+        val tpe = typeToJVMType(en.getType)
 
         val var1 = ch.getFreshVar
         val var2 = ch.getFreshVar
@@ -220,14 +224,14 @@ object CodeGeneration extends Phase[Program, Unit] {
 
             // Append left
             ch <<
-              InvokeVirtual("java/lang/StringBuilder", "append", s"(${toJVMType(l.getType)})Ljava/lang/StringBuilder;") <<
+              InvokeVirtual("java/lang/StringBuilder", "append", s"(${typeToJVMType(l.getType)})Ljava/lang/StringBuilder;") <<
               POP <<
               ALoad(var1)
 
             // Append right
             generateExpr(r, ch, symbolsToRefs)
             ch <<
-              InvokeVirtual("java/lang/StringBuilder", "append", s"(${toJVMType(r.getType)})Ljava/lang/StringBuilder;") <<
+              InvokeVirtual("java/lang/StringBuilder", "append", s"(${typeToJVMType(r.getType)})Ljava/lang/StringBuilder;") <<
               POP <<
               ALoad(var1) <<
               // Push the string on the stack
@@ -303,12 +307,12 @@ object CodeGeneration extends Phase[Program, Unit] {
             case Field(clas) =>
               ch << ALOAD_0
               generateExpr(expr, ch, symbolsToRefs)
-              ch << PutField(clas, name, toJVMType(id.getType))
+              ch << PutField(clas, name, typeToJVMType(id.getType))
           }
           case None =>
             ch << ALOAD_0
             generateExpr(expr, ch, symbolsToRefs)
-            ch << PutField(symbolsToRefs(CLASS).asInstanceOf[Field].clas, name, toJVMType(id.getType))
+            ch << PutField(symbolsToRefs(CLASS).asInstanceOf[Field].clas, name, typeToJVMType(id.getType))
         }
       case Not(expr: ExprTree) =>
         generateExpr(expr, ch, symbolsToRefs)
@@ -363,10 +367,19 @@ object CodeGeneration extends Phase[Program, Unit] {
           Ldc(0) <<
           Label(trueLbl)
       case New(tpe: Identifier) =>
+        // Handle foreign methods
+        val value = tpe.getSymbol match {
+          case x : ClassSymbol => x.foreignPath match {
+            case Some(y) => y
+            case None => tpe.value
+          }
+          case _ => sys.error(s"Symbol on $tpe was not class symbol.")
+        }
+
         ch <<
-          NewInst(tpe.value) <<
+          NewInst(value) <<
           DUP <<
-          InvokeSpecial(tpe.value, "<init>", "()V")
+          InvokeSpecial(value, "<init>", "()V")
       case MethodCall(obj, meth, args) =>
         generateExpr(obj, ch, symbolsToRefs)
 
@@ -380,7 +393,7 @@ object CodeGeneration extends Phase[Program, Unit] {
             val methodName = meth.value
             classSymbol.lookupMethod(methodName) match {
               case Some(y) =>
-                className = y.classSymbol.name
+                className = y.classSymbol.foreignPath.getOrElse(y.classSymbol.name)
 
                 // Append bytecodes to handler
                 ch <<
@@ -401,12 +414,12 @@ object CodeGeneration extends Phase[Program, Unit] {
                   // Fallback on field if not found in method scope
                   ch <<
                     ALOAD_0 <<
-                    GetField(clas, name, toJVMType(id.getType))
+                    GetField(clas, name, typeToJVMType(id.getType))
               }
               case None =>
                 ch <<
                   ALOAD_0 <<
-                  GetField(symbolsToRefs(CLASS).asInstanceOf[Field].clas, name, toJVMType(id.getType))
+                  GetField(symbolsToRefs(CLASS).asInstanceOf[Field].clas, name, typeToJVMType(id.getType))
             }
           case TInt | TBoolean =>
             val name = id.getSymbol.toString
@@ -416,12 +429,12 @@ object CodeGeneration extends Phase[Program, Unit] {
                   ch << ILoad(slot)
                 case Field(clas) => ch <<
                   ALOAD_0 <<
-                  GetField(clas, name, toJVMType(id.getType))
+                  GetField(clas, name, typeToJVMType(id.getType))
               }
               case None =>
                 ch <<
                   ALOAD_0 <<
-                  GetField(symbolsToRefs("class").asInstanceOf[Field].clas, name, toJVMType(id.getType))
+                  GetField(symbolsToRefs("class").asInstanceOf[Field].clas, name, typeToJVMType(id.getType))
             }
           case x =>
             sys.error(s"Expr was $x. Should not happen.")
@@ -470,15 +483,6 @@ object CodeGeneration extends Phase[Program, Unit] {
           Goto(loopLbl) <<
           Label(endLbl)
     }
-  }
-
-  def toJVMType(t: Type) : String = t match {
-    case TUnit => "V"
-    case TInt => "I"
-    case TBoolean => "Z"
-    case TString => "Ljava/lang/String;"
-    case TClass(x) => s"L${x.name};"
-    case x => sys.error(s"Type $x shouldn't occur.")
   }
 }
 

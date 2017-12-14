@@ -4,6 +4,7 @@ package analyzer
 import ast.Trees._
 import Types._
 import punkt0.analyzer.Symbols.VariableSymbol
+import punkt0.conversion.Convert._
 
 object TypeChecking extends Phase[Program, Program] {
 
@@ -220,15 +221,5 @@ object TypeChecking extends Phase[Program, Program] {
     }))
 
     prog
-  }
-
-  private def typeTreeToTyped(tpe: TypeTree): List[Type] = {
-    tpe match {
-      case BooleanType() => List(TBoolean)
-      case IntType() => List(TInt)
-      case UnitType() => List(TUnit)
-      case StringType() => List(TString, TUntyped) // TODO: we treat string as primitive type so I don't think this should be allowed but in Calendar.p0:79 we see an example where this happens
-      case t => List(t.getType, TUntyped)
-    }
   }
 }

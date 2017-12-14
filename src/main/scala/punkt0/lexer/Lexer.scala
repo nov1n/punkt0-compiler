@@ -57,7 +57,7 @@ object Lexer extends Phase[File, Iterator[Token]] {
 
         //  myVar | class ...
         def parseIdentOrKeword(b : StringBuffer) : Token = {
-          while(peek.isDefined && peek.get.isLetterOrDigit || peek.get == '_' ) {
+          while(peek.isDefined && peek.get.isLetterOrDigit || peek.get == '_') {
             b.append(bufferedSource.next)
           }
 

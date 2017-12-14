@@ -94,7 +94,7 @@ object Printer {
         s.append(s"${keywords(PRINTLN)}${keywords(LPAREN)}")
         s = apply(s, l, expr)
         s.append(s"${keywords(RPAREN)}")
-      case ClassDecl(id, parent, vars, methods) =>
+      case ClassDecl(id, parent, vars, methods, _) =>
         val ext = parent match {
           case Some(p) => s"${keywords(EXTENDS)} ${valOrSymbol(p)} "
           case None => ""
@@ -116,7 +116,7 @@ object Printer {
         })
 
         s.append("\n}\n\n")
-      case MethodDecl(overrides, retType, id, args, vars, exprs, retExpr) =>
+      case MethodDecl(overrides, retType, id, args, vars, exprs, retExpr, _) =>
         val ovrr = if(overrides) s"${keywords(OVERRIDE)} " else ""
         s.append(s"$ovrr${keywords(DEF)} ${valOrSymbol(id)}${keywords(LPAREN)}")
 

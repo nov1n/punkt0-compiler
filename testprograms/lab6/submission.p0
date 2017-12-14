@@ -1,0 +1,29 @@
+// DESC                                                         EXPECTED    ACTUAL
+// TODO: undeclared types and variables                         invalid     valid
+// TODO: shadowing                                              valid       invalid
+// TODO: methods (return type, reassigning parameters, etc.)    invalid     valid
+//xTODO: overriding methods                                     invalid     valid
+
+class A {
+ var a : Int = 5;
+ def a() : Unit = {
+   println("HEY")
+ }
+}
+class B extends A{
+  def b(a : Boolean, b : Int) : Unit = {
+    println("a")
+  }
+}
+
+class C extends B {
+  def afd(a : Boolean) : Unit = {
+    a = true;
+    println(a)
+  }
+}
+
+object Main extends App {
+  //var b: B = null;
+  println("Hello")
+}

@@ -4,7 +4,8 @@ import java.io.File
 
 case class Context(
   file: Option[File] = None,
-  debug: Boolean = false,
+  classPath: Option[String] = None,
+  debug: Boolean = true,
   outDir: Option[File] = None,
   doEval: Boolean = false,
   doHelp: Boolean = false,

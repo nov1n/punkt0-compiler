@@ -6,11 +6,18 @@ import punkt0.analyzer.Types._
 import punkt0.ast.Trees._
 
 object Enforce {
+  def classExists(tpe: Identifier): Unit = {
+    NameAnalysis.globalScope.lookupClass(tpe.value) match {
+      case Some(_) => Unit
+      case None => Reporter.error(s"Class '${tpe.value}' does not exist.", tpe)
+    }
+  }
+
   def ifOverridesExists(overrides: Boolean, m: MethodDecl) : Unit = {
     if(!overrides) return
     m.getSymbol.classSymbol.parent match {
       case Some(x) => x.lookupMethod(m.id.value) match {
-        case Some(y) => Unit
+        case Some(_) => Unit
         case None => Reporter.error(s"Overriding nonexisting method ${m.id.value}", m)
       }
       case None => Unit
@@ -130,7 +137,7 @@ object Enforce {
     // Allow method var to shadow class var
     var classSym : Option[VariableSymbol] = None
     scope match {
-      case m @ MethodDecl(_, _, _, _, _, _, _) =>
+      case m @ MethodDecl(_, _, _, _, _, _, _, _) =>
         classSym = m.getSymbol.classSymbol.lookupVar(v.id.value)
       case _ => Unit
     }

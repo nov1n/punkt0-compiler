@@ -3,6 +3,7 @@ package ast
 
 import Trees._
 import lexer._
+import punkt0.resolver.ForeignResolver
 
 import scala.util.Try
 
@@ -44,12 +45,56 @@ object Parser extends Phase[Iterator[Token], Program] {
     def program : Program = {
       val startToken = currentToken
       var classes = List[ClassDecl]()
-      while (currentToken.kind == CLASS) {
-        classes :+= classDecl
+      while (currentToken.kind == CLASS || currentToken.kind == FOREIGN) {
+        if(currentToken.kind == FOREIGN) classes :+= foreignClassDecl
+        if(currentToken.kind == CLASS) classes :+= classDecl
       }
       val main = mainDeclaration
       eat(EOF)
       Program(main, classes).setPos(startToken)
+    }
+
+    /** ForeignClassDecl ::= foreign class Identifier */
+    def foreignClassDecl: ClassDecl = {
+      val startToken = currentToken
+      eat(FOREIGN)
+      eat(CLASS)
+      var path = ""
+      while (currentToken.kind != AS) {
+        path += identifier.value
+        if(currentToken.kind == DOT) {
+          path += "/"
+          eat(DOT)
+        }
+      }
+      eat(AS)
+      val alias = identifier
+      eat(LBRACE)
+
+      // Handle methods
+      var methods = List[MethodDecl]()
+      while(currentToken.kind != RBRACE) {
+        val startToken = currentToken
+        eat(DEF)
+        val id = identifier
+        eat(LPAREN)
+        var args = List[Formal]()
+        while (currentToken.kind != RPAREN) {
+          if (currentToken.kind == COMMA) eat(COMMA)
+          val startToken = currentToken
+          val aid = identifier
+          eat(COLON)
+          val atype = tipe
+          args :+= Formal(atype, aid).setPos(startToken)
+        }
+        eat(RPAREN)
+        eat(COLON)
+        val ret = tipe
+
+        methods :+= MethodDecl(overrides = false, ret, id, args, List(), List(), ForeignResolver.defaultExprForType(ret), Some(path)).setPos(startToken)
+      }
+      eat(RBRACE)
+      ClassDecl(alias, None, List(), methods, Some(path)).setPos(startToken)
     }
 
     /** ClassDecl ::= class Identifier ( extends Identifier )? { ( VarDecl ) ( MethodDecl ) } */
@@ -72,7 +117,7 @@ object Parser extends Phase[Iterator[Token], Program] {
         meths :+= methodDecl
       }
       eat(RBRACE)
-      ClassDecl(id, parent, vars, meths).setPos(startToken)
+      ClassDecl(id, parent, vars, meths, None).setPos(startToken)
     }
 
     /** MainDecl ::= object Identifier extends Identifier { ( VarDecl ) Expression ( ; Expression ) } */
@@ -151,7 +196,7 @@ object Parser extends Phase[Iterator[Token], Program] {
       }
 
       eat(RBRACE)
-      MethodDecl(overide, ret, id, args, vars, exprs.dropRight(1), exprs.last).setPos(startToken)
+      MethodDecl(overide, ret, id, args, vars, exprs.dropRight(1), exprs.last, None).setPos(startToken)
     }
 
     /** Identifier ::= <\IDENTIFIER/> */

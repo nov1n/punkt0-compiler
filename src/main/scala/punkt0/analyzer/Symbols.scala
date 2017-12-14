@@ -50,6 +50,7 @@ object Symbols {
   // This class represents the class scope with a parent, methods, and members
   class ClassSymbol(val name: String) extends Symbol {
     var parent: Option[ClassSymbol] = None
+    var foreignPath: Option[String] = None
     var methods = Map[String, MethodSymbol]()
     var members = Map[String, VariableSymbol]()
 

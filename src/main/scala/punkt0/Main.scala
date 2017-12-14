@@ -6,6 +6,7 @@ import lexer._
 import analyzer.{NameAnalysis, TypeChecking}
 import ast.{Parser, Printer, PrinterTree}
 import punkt0.code.CodeGeneration
+import punkt0.resolver.ForeignResolver
 
 
 object Main {
@@ -40,6 +41,10 @@ object Main {
 
       case "--symid" :: args =>
         ctx = ctx.copy(doSymbolIds = true)
+        processOption(args)
+
+      case "-classPath" :: cp :: args =>
+        ctx = ctx.copy(classPath = Some(cp))
         processOption(args)
 
       case f :: args =>
@@ -111,7 +116,10 @@ object Main {
       sys.exit(0)
     }
 
-    val named = NameAnalysis.run(parsed)(ctx)
+    val resolved = ForeignResolver.run(parsed)(ctx)
+    Reporter.terminateIfErrors()
+
+    val named = NameAnalysis.run(resolved)(ctx)
     Reporter.terminateIfErrors()
 
     val typeCorrect = TypeChecking.run(named)(ctx)
