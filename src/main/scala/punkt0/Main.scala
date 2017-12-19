@@ -75,6 +75,7 @@ object Main {
     println(" --astree      print the ast as a tree")
     println(" --symid       print the ast with symbol ids")
     println(" --pretty      pretty print the ast")
+    println(" --classPath   add folder to classpath")
   }
 
   def main(args: Array[String]): Unit = {

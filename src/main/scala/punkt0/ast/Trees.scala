@@ -52,7 +52,7 @@ object Trees {
   }
   case class This() extends ExprTree with Symbolic[ClassSymbol]
   case class Null() extends ExprTree
-  case class New(tpe: Identifier) extends ExprTree
+  case class New(tpe: Identifier, args : Option[List[ExprTree]]) extends ExprTree
   case class Not(expr: ExprTree) extends ExprTree
 
   case class Block(exprs: List[ExprTree]) extends ExprTree

@@ -1,0 +1,24 @@
+// Foreign class example
+foreign class java.util.Random as JRandom {
+    def nextInt(a : Int): Int
+    def nextBoolean(): Boolean
+}
+
+// Override foreign class example
+class MyRandom extends JRandom {
+    override def nextInt(a : Int) : Int = { 5 }
+}
+
+object Main extends App {
+    var r : JRandom = new JRandom();
+    var m : MyRandom = new MyRandom();
+
+    // Generate random number
+    println("Should be random (0-20): " + r.nextInt(20));
+
+    // nextInt is now overridden to always return 5
+    println("Should be 5: " + m.nextInt(3));
+
+    // Other methods inherited from JRandom still exist on MyRandom
+    println(m.nextBoolean())
+}

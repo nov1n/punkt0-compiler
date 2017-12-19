@@ -19,20 +19,31 @@ object ForeignResolver extends Phase[Program, Program] {
     }
   }
 
+  def isValidPunktType(t: BType) : Boolean = {
+    t match {
+      case BType.BOOLEAN => true
+      case BType.VOID => true
+      case BType.STRING => true
+      case BType.INT => true
+      case _ => false
+    }
+  }
+
   def defaultExprForType(t: TypeTree): ExprTree = t match {
     case BooleanType() => False()
     case UnitType() => Println(StringLit(""))
     case StringType() => StringLit("")
     case IntType() => IntLit(0)
+    case x@Identifier(j) => New(x, None)
     case x => Reporter.error(s"Invalid type $x", t); Null()
   }
 
   def methodsAreEqual(method: MethodDecl, classFileMethod: Method): Boolean = {
     if(method.args.length != classFileMethod.getArgumentTypes.length) return false
-    method.args.map(_.tpe)
+    val checks = method.args.map(_.tpe)
       .zip(classFileMethod.getArgumentTypes)
-      .::(method.retType, classFileMethod.getReturnType)
-      .forall({case (x, y) => return x == bcelTypeToPunktTypeTree(y)})
+    if(classFileMethod.getName != "<init>") checks.::(method.retType, classFileMethod.getReturnType)
+    checks.forall({case (x, y) => return isValidPunktType(y) && (x == bcelTypeToPunktTypeTree(y))})
   }
 
   override def run(p: Program)(ctx: Context): Program = {
@@ -51,12 +62,13 @@ object ForeignResolver extends Phase[Program, Program] {
 
             // For all foreign methods we must find one in the classfile with the same signature
             c.methods.foreach(m => {
+              val name = if(m.id == c.id) "<init>" else m.id.value
               classParsed.getMethods.filter(classFileMethod => {
-                classFileMethod.getName.equals(m.id.value) &&
+                classFileMethod.getName.equals(name) &&
                   classFileMethod.isPublic &&
                   methodsAreEqual(m, classFileMethod)
               }) match {
-                case matched if matched.isEmpty => Reporter.error(s"Method ${m.id.value} not found in foreign class ${c.id.value}", m)
+                case matched if matched.isEmpty => Reporter.error(s"Method $name not found in foreign class ${x}", m)
                 case _ => Unit
               }
             })

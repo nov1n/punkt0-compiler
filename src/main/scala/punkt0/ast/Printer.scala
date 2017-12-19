@@ -190,7 +190,7 @@ object Printer {
         s.append(s"${keywords(THIS)}")
       case Null() =>
         s.append(s"${keywords(NULL)}")
-      case New(id) =>
+      case New(id, _) =>
         s.append(valOrSymbol(id))
       case Not(expr) =>
         s.append(s"${keywords(BANG)}")

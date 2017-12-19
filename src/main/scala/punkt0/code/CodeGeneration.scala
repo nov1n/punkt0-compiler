@@ -7,7 +7,6 @@ import analyzer.Types._
 import cafebabe._
 import AbstractByteCodes.{New => NewInst, _}
 import ByteCodes._
-import punkt0.analyzer.{NameAnalysis, Symbols}
 import punkt0.analyzer.Symbols.{ClassSymbol, MethodSymbol}
 import punkt0.conversion.Convert._
 
@@ -23,7 +22,10 @@ object CodeGeneration extends Phase[Program, Unit] {
     def generateClassFile(sourceName: String, ct: ClassDecl, dir: String): Unit = {
       val parentDir = if (dir.isEmpty) "./" else dir
       val parentClass = ct.getSymbol.parent match {
-        case Some(x) => x.name
+        case Some(x) => x.foreignPath match {
+          case Some(y) => y
+          case None => x.name
+        }
         case None => "java/lang/Object"
       }
 
@@ -366,7 +368,7 @@ object CodeGeneration extends Phase[Program, Unit] {
           Label(falseLbl) <<
           Ldc(0) <<
           Label(trueLbl)
-      case New(tpe: Identifier) =>
+      case New(tpe: Identifier, args) =>
         // Handle foreign methods
         val value = tpe.getSymbol match {
           case x : ClassSymbol => x.foreignPath match {
@@ -378,8 +380,17 @@ object CodeGeneration extends Phase[Program, Unit] {
 
         ch <<
           NewInst(value) <<
-          DUP <<
-          InvokeSpecial(value, "<init>", "()V")
+          DUP
+        var argsSig = "()V"
+        args match {
+          case Some(v) =>
+            argsSig = "(" + v.map(z => typeToJVMType(z.getType)).mkString("") + ")V"
+            v.foreach(a => {
+              generateExpr(a, ch, symbolsToRefs)
+            })
+          case None => Unit
+        }
+        ch << InvokeSpecial(value, "<init>", argsSig)
       case MethodCall(obj, meth, args) =>
         generateExpr(obj, ch, symbolsToRefs)
 

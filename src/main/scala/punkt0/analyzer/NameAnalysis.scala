@@ -248,7 +248,7 @@ object NameAnalysis extends Phase[Program, Program] {
         symbolizeIdentifier(id, scope)
         symbolizeIdentifiers(expr, scope)
       case id @ Identifier(_) => symbolizeIdentifier(id, scope)
-      case New(tpe) =>
+      case New(tpe, args) =>
         Enforce.classExists(tpe)
         symbolizeIdentifier(tpe, scope)
       case Not(expr) => symbolizeIdentifiers(expr, scope)

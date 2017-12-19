@@ -8,7 +8,7 @@ import punkt0.ast.Trees._
 object Enforce {
   def classExists(tpe: Identifier): Unit = {
     NameAnalysis.globalScope.lookupClass(tpe.value) match {
-      case Some(_) => Unit
+      case Some(x) => Unit
       case None => Reporter.error(s"Class '${tpe.value}' does not exist.", tpe)
     }
   }

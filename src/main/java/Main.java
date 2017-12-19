@@ -1,8 +1,8 @@
+import java.io.File;
 import java.util.Random;
 
 class Main {
     public static void main(String[] args) {
-        System.out.println("hey".equals("hey"));
-        System.out.println(new Random().toString() == "bye");
+        File f = new File("hurr/durr");
     }
 }

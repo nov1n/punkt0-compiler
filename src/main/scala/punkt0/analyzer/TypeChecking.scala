@@ -3,7 +3,7 @@ package analyzer
 
 import ast.Trees._
 import Types._
-import punkt0.analyzer.Symbols.VariableSymbol
+import punkt0.analyzer.Symbols.{ClassSymbol, VariableSymbol}
 import punkt0.conversion.Convert._
 
 object TypeChecking extends Phase[Program, Program] {
@@ -38,7 +38,21 @@ object TypeChecking extends Phase[Program, Program] {
         case StringLit(_) => TString
         case x @ This() => x.getSymbol.getType
         case x @ Identifier(_) => x.getSymbol.getType
-        case New(i) => i.getType
+        case New(i, args) =>
+          i.getSymbol match {
+            case x : ClassSymbol => x.lookupMethod(x.name) match {
+              case Some(y) => args match {
+                case Some(z) =>
+                  if(y.argList.size != z.size) Reporter.error(s"Constructor ${x.name} called with wrong number of arguments, expected ${y.argList.size}, got ${z.size}", i)
+                  y.argList.zip(z).foreach({case (a,b) => tcExpr(b, a.getType)})
+                case None => Unit
+              }
+              case _ => Unit
+            }
+            case _ => Unit
+          }
+
+          i.getType
         case Not(e) => tcExpr(e, TBoolean)
         case Println(e) =>
           tcExpr(e, TBoolean, TString, TInt)
@@ -46,7 +60,7 @@ object TypeChecking extends Phase[Program, Program] {
         case Block(e) =>
           if(e.isEmpty) return TUnit
           e.reverse.tail.map(x => tcExpr(x))
-          val tpe = tcExpr(e.reverse.head, expected : _*) // TODO: Understand what it means to pass along expected
+          val tpe = tcExpr(e.reverse.head, expected : _*)
           tpe
         case And(l, r) =>
           tcExpr(l, TBoolean)
@@ -116,8 +130,6 @@ object TypeChecking extends Phase[Program, Program] {
           Enforce.notUnit(e)
           id.getSymbol match {
             case s : VariableSymbol =>
-            // TODO: Disallow assignment to anything other than a variable (Maybe already done)
-
               // get parent
               // if(parent is a method)
               //   check if id.getSymbol is present in arglist

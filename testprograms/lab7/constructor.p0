@@ -1,0 +1,12 @@
+// Constructor with argument
+foreign class java.io.File as JFile {
+    def JFile(s : String) : JFile
+    def mkdir() : Boolean
+}
+
+object Main extends App {
+    // Constructors with arguments
+    var f : JFile = new JFile("/tmp/dir");
+    var created : Boolean = f.mkdir();
+    println(created)
+}

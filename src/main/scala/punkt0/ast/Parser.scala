@@ -4,6 +4,7 @@ package ast
 import Trees._
 import lexer._
 import punkt0.resolver.ForeignResolver
+import java.util.Random
 
 import scala.util.Try
 
@@ -393,8 +394,14 @@ object Parser extends Phase[Iterator[Token], Program] {
           eat(NEW)
           val id = identifier
           eat(LPAREN)
+          var args = List[ExprTree]()
+          if(currentToken.kind != RPAREN) args :+= expression
+          while (currentToken.kind != RPAREN) {
+            eat(COMMA)
+            args :+= expression
+          }
           eat(RPAREN)
-          New(id).setPos(startToken)
+          New(id, Some(args)).setPos(startToken)
         case BANG =>
           eat(BANG)
           val expr = termMethod // Binds tightest
