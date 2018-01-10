@@ -129,7 +129,7 @@ object Lexer extends Phase[File, Iterator[Token]] {
           }
         }
 
-        var resTok = new Token(BAD) // TODO: Find a way to remove this variable
+        var resTok = new Token(BAD)
 
         if (!bufferedSource.hasNext) {
           eof = true

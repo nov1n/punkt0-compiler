@@ -1,6 +1,5 @@
 package punkt0
 package code
-// TODO: Add line numbers
 
 import ast.Trees._
 import analyzer.Types._

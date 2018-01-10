@@ -1,7 +1,4 @@
 // DESC                                                         EXPECTED    ACTUAL
-// TODO: undeclared types and variables                         invalid     valid
-// TODO: shadowing                                              valid       invalid
-// TODO: methods (return type, reassigning parameters, etc.)    invalid     valid
 //xTODO: overriding methods                                     invalid     valid
 
 class A {

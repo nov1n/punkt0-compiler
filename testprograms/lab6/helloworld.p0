@@ -48,7 +48,7 @@ object MyMain extends App {
   //println(false && 1/0 == 5);
   //println(true && true);
   //println(true && 1 < 5)
-  //println("hello: " + "hello"); // TODO: Fix this
+  //println("hello: " + "hello");
   //println(true);
   //println(5 + 5);
   //println(5 * 5);
@@ -67,7 +67,7 @@ object MyMain extends App {
   //a = a + " This" + " is " + "fun!";
   //println(a);
 
-  //println(d.bar(1,2,3)) // TODO: Always prints 1, expected 3
+  //println(d.bar(1,2,3))
   //println(5 + "heu" + "Hurr" + "Hurr" + 5 + 7);
   //var b : Boolean = true;
   //b = 5 < 7 || 3 < 4 && false;
@@ -75,7 +75,7 @@ object MyMain extends App {
   //println(5+5)
   //b = {
   //  println(5);
-  //  //"hello"; // TODO: This nasty edge case leaves a variable on the stack
+  //  //"hello";
   //  true
   //};
   //var e : Bar = new Bar();

@@ -19,7 +19,7 @@ object Convert {
       case BooleanType() => List(TBoolean)
       case IntType() => List(TInt)
       case UnitType() => List(TUnit)
-      case StringType() => List(TString, TUntyped) // TODO: we treat string as primitive type so I don't think this should be allowed but in Calendar.p0:79 we see an example where this happens
+      case StringType() => List(TString, TUntyped)
       case t => List(t.getType, TUntyped)
     }
   }

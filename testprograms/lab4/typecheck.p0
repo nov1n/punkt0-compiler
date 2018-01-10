@@ -88,5 +88,5 @@ class C extends B {
 object Main extends App {
   var c : C = new C();
   println("hello world")
-  //c = this // TODO: What is the expected behavior here?
+  //c = this
 }

@@ -6,7 +6,10 @@ foreign class java.io.File as JFile {
 
 object Main extends App {
     // Constructors with arguments
-    var f : JFile = new JFile("/tmp/dir");
+    var d : String = "/tmp/dir";
+    var f : JFile = new JFile(d);
     var created : Boolean = f.mkdir();
-    println(created)
+
+    if(created == true) println("Created directory: " + d)
+    else println("Could not create directory: " + d)
 }

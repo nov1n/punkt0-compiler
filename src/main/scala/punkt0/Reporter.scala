@@ -42,7 +42,7 @@ object Reporter {
       val lines = linesIn(pos.file)
       if (pos.line <= lines.size) {
         err(lines(pos.line - 1))
-        err(" " * (pos.column -1) + "^\n") // TODO: I added -1 because it looks like the caret is one off
+        err(" " * (pos.column -1) + "^\n")
       } else {
         err("line not in source file")
       }
