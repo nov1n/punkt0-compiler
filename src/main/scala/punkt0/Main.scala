@@ -68,14 +68,14 @@ object Main {
   def displayHelp(): Unit = {
     println("Usage: <punkt0c> [options] <file>")
     println("Options include:")
-    println(" --help        displays this help")
-    println(" -d <outdir>   generates class files in the specified directory")
-    println(" --tokens      print tokens as parsed by the lexer")
-    println(" --ast         print the ast")
-    println(" --astree      print the ast as a tree")
-    println(" --symid       print the ast with symbol ids")
-    println(" --pretty      pretty print the ast")
-    println(" --classPath   add folder to classpath")
+    println(" --help                  displays this help")
+    println(" -d <outdir>             generates class files in the specified directory")
+    println(" -classPath <classpath>  add folder to classpath")
+    println(" --tokens                print tokens as parsed by the lexer")
+    println(" --ast                   print the ast")
+    println(" --astree                print the ast as a tree")
+    println(" --symid                 print the ast with symbol ids")
+    println(" --pretty                pretty print the ast")
   }
 
   def main(args: Array[String]): Unit = {

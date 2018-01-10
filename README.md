@@ -8,8 +8,8 @@ The examples are in the folder `testprograms/`. Examples demonstrating the featu
 ### Running
 
 To run first
-```sbt compile```
+```sbt compile```.
 
-Then ```sbt run -d ./classfiles testprograms/lab7/constructor.p0```
+Then ```sbt "run -classPath /usr/lib/jvm/java-8-oracle/jre/lib/rt.jar -d ./classfiles testprograms/lab7/constructor.p0"```. Be sure to modify the classpath of `rt.jar` to match your installation.
 
 Classfiles are now in `classfiles` folder. These can be run with `java Main`
